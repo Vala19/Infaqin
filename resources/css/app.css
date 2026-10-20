@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../../config/infaqin.php';
+
+/* Palette and type from the Infaqin Figma asset sheet */
+@theme {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    --font-nav: 'Montserrat', 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+    --color-brand: #22b04b;
+    --color-brand-600: #1c9a41;
+    --color-brand-700: #177d35;
+    --color-mint: #8bf0a8;
+    --color-mint-50: #effcf2;
+    --color-forest: #425745;
+    --color-forest-900: #2b3a2d;
+    --color-ink: #484646;
+    --color-mist: #d9d9d9;
+    --color-night: #1e1e1e;
+    --color-paper: #f6f8f5;
+
+    --shadow-card: 0 4px 14px 0 rgb(0 0 0 / 0.08);
+    --shadow-nav: 0 4px 25px -1px rgb(0 0 0 / 0.21);
+    --shadow-glow: 0 10px 40px 0 rgb(34 176 75 / 0.3);
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 6rem;
+    }
+
+    body {
+        @apply bg-paper text-ink antialiased;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    :focus-visible {
+        @apply outline-2 outline-offset-2 outline-brand;
+    }
+}
+
+@layer components {
+    .container-page {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-brand text-white hover:bg-brand-600 active:bg-brand-700;
+    }
+
+    .btn-outline {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-brand text-brand hover:bg-brand hover:text-white;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 text-ink hover:bg-black/5;
+    }
+
+    .btn-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-red-600 text-white hover:bg-red-700;
+    }
+
+    .card {
+        @apply rounded-2xl bg-white shadow-card;
+    }
+
+    .input {
+        @apply block w-full rounded-lg border border-mist bg-white px-4 py-2.5 text-sm text-night placeholder:text-ink/50 transition focus:border-brand focus:ring-2 focus:ring-brand/25 focus:outline-none;
+    }
+
+    .input-error {
+        @apply border-red-500 focus:border-red-500 focus:ring-red-500/20;
+    }
+
+    .label {
+        @apply mb-1.5 block text-sm font-medium text-night;
+    }
+
+    .eyebrow {
+        @apply text-xs font-semibold tracking-[0.2em] text-brand uppercase;
+    }
+
+    .section-title {
+        @apply text-3xl font-bold tracking-tight text-night sm:text-4xl;
+    }
+
+    .chip {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+    }
+
+    .nav-link {
+        @apply font-nav rounded-lg px-3 py-2 text-[15px] tracking-[0.04em] text-white/85 transition hover:text-mint;
+    }
+
+    .nav-link-active {
+        @apply text-mint;
+    }
+
+    .prose-infaqin p {
+        @apply mb-4 leading-relaxed text-ink;
+    }
+}
