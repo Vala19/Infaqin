@@ -23,13 +23,13 @@ class HomeController extends Controller
         ];
 
         $topCampaigns = Campaign::active()
-            ->with('campaigner')
+            ->with(['campaigner', 'category'])
             ->orderByDesc('donor_count')
             ->take(3)
             ->get();
 
         $urgentCampaign = Campaign::active()
-            ->with('campaigner')
+            ->with(['campaigner', 'category'])
             ->where('is_urgent', true)
             ->whereNotIn('id', $topCampaigns->pluck('id'))
             ->orderBy('deadline')

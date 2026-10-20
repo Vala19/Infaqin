@@ -16,6 +16,8 @@ class DonationController extends Controller
 {
     public function create(Request $request, Campaign $campaign): View|RedirectResponse
     {
+        abort_if($campaign->isDraft(), 404);
+
         if (! $campaign->isOpen()) {
             return redirect()->route('campaigns.show', $campaign)
                 ->with('error', __('This campaign is no longer accepting donations.'));
@@ -33,6 +35,7 @@ class DonationController extends Controller
 
     public function store(Request $request, Campaign $campaign): RedirectResponse
     {
+        abort_if($campaign->isDraft(), 404);
         abort_unless($campaign->isOpen(), 422, __('This campaign is no longer accepting donations.'));
 
         $request->merge(['amount' => preg_replace('/\D/', '', (string) $request->input('amount'))]);

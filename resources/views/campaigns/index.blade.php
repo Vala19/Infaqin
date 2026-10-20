@@ -51,11 +51,11 @@
                     <fieldset>
                         <legend class="mb-3 text-xs font-semibold tracking-wide text-ink/60 uppercase">{{ __('Category') }}</legend>
                         <div class="space-y-2.5">
-                            @foreach (\App\Models\Campaign::CATEGORIES as $key => $label)
+                            @foreach ($categories as $category)
                                 <label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink">
-                                    <input type="checkbox" name="category[]" value="{{ $key }}" @checked(in_array($key, $selectedCategories))
+                                    <input type="checkbox" name="category[]" value="{{ $category->slug }}" @checked(in_array($category->slug, $selectedCategories))
                                            @change="$el.form.requestSubmit()" class="size-4 rounded border-mist accent-brand">
-                                    {{ __($label) }}
+                                    {{ __($category->name) }}
                                 </label>
                             @endforeach
                         </div>
@@ -64,7 +64,7 @@
                     <fieldset>
                         <legend class="mb-3 text-xs font-semibold tracking-wide text-ink/60 uppercase">{{ __('Status') }}</legend>
                         <div class="grid grid-cols-3 gap-1 rounded-lg bg-paper p-1 text-xs font-medium">
-                            @foreach (['active' => __('Active'), 'completed' => __('Done'), 'all' => __('All')] as $value => $label)
+                            @foreach (['active' => __('Active'), 'closed' => __('Closed'), 'all' => __('All')] as $value => $label)
                                 <label class="cursor-pointer">
                                     <input type="radio" name="status" value="{{ $value }}" class="peer sr-only" @checked($filters['status'] === $value) @change="$el.form.requestSubmit()">
                                     <span class="block rounded-md py-1.5 text-center text-ink/70 transition peer-checked:bg-white peer-checked:text-brand peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand">{{ $label }}</span>

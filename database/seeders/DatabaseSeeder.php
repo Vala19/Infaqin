@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Campaign;
 use App\Models\Campaigner;
+use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Donation;
 use App\Models\News;
@@ -58,18 +59,21 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Rumah Yatim Nusantara', 'location' => 'Yogyakarta', 'bio' => 'Caring for orphans and dhuafa children through education scholarships, nutrition and mentoring programs.'],
             ['name' => 'Siaga Bencana ID', 'location' => 'Jakarta', 'bio' => 'A volunteer-run rapid response team delivering logistics, clean water and medical aid to disaster areas.'],
             ['name' => 'Klinik Sehat Desa', 'location' => 'Kupang, NTT', 'bio' => 'Mobile clinics and health workers serving remote villages in Eastern Indonesia.'],
+            ['name' => 'Syaamil', 'location' => 'Bandung, West Java', 'bio' => 'Programmes run directly by the Syaamil team.', 'is_internal' => true],
         ])->map(fn ($data) => Campaigner::create($data + ['slug' => Str::slug($data['name']), 'is_verified' => true]));
 
-        [$qubba, $yatim, $siaga, $klinik] = $campaigners->all();
+        [$qubba, $yatim, $siaga, $klinik, $syaamil] = $campaigners->all();
+
+        $categories = Category::pluck('id', 'slug');
 
         $campaigns = collect([
             [$qubba, 'GEMAS — Gerakan Membersihkan Masjid', 'mosque', 'images/campaigns/gemas.jpg', 'Bandung', 150_000_000, 40, true, false,
                 'Join the movement to clean, repair and care for neighbourhood mosques that have been left behind.',
                 "Hundreds of small mosques across West Java struggle with leaking roofs, broken wudhu taps and carpets that have not been replaced in decades.\n\nGEMAS mobilises local volunteers every weekend to deep-clean and repair these mosques. Your donation buys cleaning supplies, replacement carpets, water pumps and pays local craftsmen for structural repairs.\n\nEvery mosque we finish gets a before-and-after report on the Open Fund Ledger, so you can see exactly what your infaq built."],
-            [$qubba, 'SSQ — Sebar Sejuta Qur\'an', 'quran', 'images/campaigns/ssq.jpg', 'Across Indonesia', 500_000_000, 75, false, true,
+            [$syaamil, 'SSQ — Sebar Sejuta Qur\'an', 'quran', 'images/campaigns/ssq.jpg', 'Across Indonesia', 500_000_000, 75, false, true,
                 'One million Qur\'ans for pesantren, TPA and remote mosques that still share a single worn-out mushaf.',
                 "In many villages, ten children share one mushaf. Pages are missing, bindings are falling apart and new students wait their turn to recite.\n\nSebar Sejuta Qur'an distributes new, high-quality Qur'ans to TPA, pesantren and mosques across the archipelago. Each Rp75.000 sends one Qur'an — including shipping to the most remote islands.\n\nWe document every distribution with photos and recipient lists."],
-            [$qubba, 'SAQTI — Sedekah Qur\'an untuk Indonesia', 'quran', 'images/campaigns/saqti.png', 'Eastern Indonesia', 250_000_000, 55, false, true,
+            [$syaamil, 'SAQTI — Sedekah Qur\'an untuk Indonesia', 'quran', 'images/campaigns/saqti.png', 'Eastern Indonesia', 250_000_000, 55, false, true,
                 'Qur\'ans with translation and tajwid guides for new Muslims and learners in Eastern Indonesia.',
                 "SAQTI focuses on communities in Maluku, Papua and NTT, where Qur'ans with Indonesian translation and tajwid guidance are especially scarce.\n\nAlongside the Qur'ans, we fund weekly study circles led by local teachers so the gift is not only received, but understood and lived."],
             [$qubba, '1000 Kado untuk Guru Ngaji', 'education', 'images/campaigns/kado-guru-ngaji.png', 'West Java', 200_000_000, 21, true, true,
@@ -86,18 +90,18 @@ class DatabaseSeeder extends Seeder
                 "For many families in rural NTT, the nearest puskesmas is a four-hour walk. Mothers give birth without a midwife and simple infections become life-threatening.\n\nWe are raising funds for a mobile clinic vehicle, medicines and two years of operating costs including a doctor, a midwife and a nurse."],
             [$yatim, 'Training Programme for Young Teachers', 'education', 'images/campaigns/volunteer.jpg', 'Central Java', 90_000_000, 35, false, false,
                 'Equip 60 young teachers in rural schools with modern teaching skills and learning materials.',
-                "Great teachers change lives. This programme funds a six-month training course, teaching kits and monthly coaching for young teachers in rural Central Java."],
+                'Great teachers change lives. This programme funds a six-month training course, teaching kits and monthly coaching for young teachers in rural Central Java.'],
             [$klinik, 'Clean Water Wells for Dry Villages', 'health', null, 'Sumba, NTT', 120_000_000, 50, true, false,
                 'In the dry season, children walk 5 km for water. Let\'s build 12 deep wells close to their homes.',
                 "Every dry season, wells in Sumba run dry and children skip school to fetch water.\n\nWe will drill 12 deep wells with solar-powered pumps, each serving around 150 families, and train local committees to maintain them."],
-        ])->map(function ($c) {
+        ])->map(function ($c) use ($categories) {
             [$campaigner, $title, $category, $image, $location, $target, $days, $urgent, $featured, $summary, $description] = $c;
 
             return Campaign::create([
                 'campaigner_id' => $campaigner->id,
+                'category_id' => $categories[$category],
                 'title' => $title,
                 'slug' => Str::slug($title),
-                'category' => $category,
                 'image' => $image,
                 'summary' => $summary,
                 'description' => $description,
@@ -106,7 +110,7 @@ class DatabaseSeeder extends Seeder
                 'deadline' => now()->addDays($days)->toDateString(),
                 'is_urgent' => $urgent,
                 'is_featured' => $featured,
-                'status' => 'active',
+                'status' => Campaign::STATUS_ACTIVE,
             ]);
         });
 

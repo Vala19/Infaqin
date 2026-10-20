@@ -4,12 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Campaign;
 use App\Models\Campaigner;
-use App\Models\Comment;
+use App\Models\Category;
 use App\Models\Donation;
 use App\Models\User;
 use App\Notifications\DonationReceipt;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class DonationFlowTest extends TestCase
@@ -24,7 +24,7 @@ class DonationFlowTest extends TestCase
             'campaigner_id' => $campaigner->id,
             'title' => 'Help the village',
             'slug' => 'help-the-village',
-            'category' => 'health',
+            'category_id' => Category::where('slug', 'health')->value('id'),
             'summary' => 'Summary',
             'description' => 'Description',
             'target_amount' => 10_000_000,

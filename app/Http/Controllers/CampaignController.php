@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
-use App\Models\Comment;
+use App\Models\Category;
 use App\Models\Donation;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,8 +25,8 @@ class CampaignController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'array'],
-            'category.*' => [Rule::in(array_keys(Campaign::CATEGORIES))],
-            'status' => ['nullable', Rule::in(['active', 'completed', 'all'])],
+            'category.*' => ['string', Rule::exists('categories', 'slug')],
+            'status' => ['nullable', Rule::in([Campaign::STATUS_ACTIVE, Campaign::STATUS_CLOSED, 'all'])],
             'urgent' => ['nullable', 'boolean'],
             'sort' => ['nullable', Rule::in(array_keys(self::SORTS))],
         ]);
@@ -35,8 +35,8 @@ class CampaignController extends Controller
         $status = $filters['status'] ?? 'active';
 
         $campaigns = Campaign::query()
-            ->with('campaigner')
-            ->when($status !== 'all', fn ($query) => $query->where('status', $status))
+            ->with(['campaigner', 'category'])
+            ->when($status === 'all', fn ($query) => $query->visible(), fn ($query) => $query->where('status', $status))
             ->when($filters['q'] ?? null, function ($query, $term) {
                 $like = '%'.addcslashes($term, '%_\\').'%';
                 $query->where(fn ($q) => $q
@@ -45,7 +45,7 @@ class CampaignController extends Controller
                     ->orWhere('location', 'like', $like)
                     ->orWhereHas('campaigner', fn ($c) => $c->where('name', 'like', $like)));
             })
-            ->when($filters['category'] ?? null, fn ($query, $categories) => $query->whereIn('category', $categories))
+            ->when($filters['category'] ?? null, fn ($query, $categories) => $query->whereHas('category', fn ($c) => $c->whereIn('slug', $categories)))
             ->when($request->boolean('urgent'), fn ($query) => $query->where('is_urgent', true))
             ->when($sort, fn ($query) => match ($sort) {
                 'newest' => $query->latest(),
@@ -60,6 +60,7 @@ class CampaignController extends Controller
 
         return view('campaigns.index', [
             'campaigns' => $campaigns,
+            'categories' => Category::orderBy('name')->get(),
             'filters' => $filters + ['sort' => $sort, 'status' => $status],
             'sorts' => self::SORTS,
         ]);
@@ -67,7 +68,10 @@ class CampaignController extends Controller
 
     public function show(Request $request, Campaign $campaign): View
     {
+        abort_if($campaign->isDraft(), 404);
+
         $campaign->load([
+            'category',
             'campaigner' => fn ($query) => $query->withCount('campaigns'),
             'withdrawals' => fn ($query) => $query->latest('withdrawn_at'),
         ]);
@@ -104,8 +108,8 @@ class CampaignController extends Controller
         }
 
         $related = Campaign::active()
-            ->with('campaigner')
-            ->where('category', $campaign->category)
+            ->with(['campaigner', 'category'])
+            ->where('category_id', $campaign->category_id)
             ->whereKeyNot($campaign->id)
             ->take(3)
             ->get();

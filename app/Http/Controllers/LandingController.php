@@ -11,7 +11,7 @@ class LandingController extends Controller
     public function __invoke(): View
     {
         $slides = Campaign::active()
-            ->with('campaigner')
+            ->with(['campaigner', 'category'])
             ->orderByDesc('is_featured')
             ->orderByDesc('is_urgent')
             ->latest()
@@ -19,7 +19,7 @@ class LandingController extends Controller
             ->get();
 
         $topCampaigns = Campaign::active()
-            ->with('campaigner')
+            ->with(['campaigner', 'category'])
             ->orderByDesc('donor_count')
             ->take(3)
             ->get();
@@ -27,7 +27,7 @@ class LandingController extends Controller
         $stats = [
             'raised' => (int) Donation::where('status', Donation::STATUS_PAID)->sum('amount'),
             'donors' => Donation::where('status', Donation::STATUS_PAID)->distinct()->count('email'),
-            'campaigns' => Campaign::count(),
+            'campaigns' => Campaign::visible()->count(),
         ];
 
         return view('landing', compact('slides', 'topCampaigns', 'stats'));

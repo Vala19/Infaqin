@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Campaign;
+use App\Models\Campaigner;
+use App\Models\Category;
 use App\Models\News;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,6 +64,33 @@ class AdminTest extends TestCase
 
         $this->delete("/admin/news/{$article->slug}")->assertRedirect('/admin/news');
         $this->assertModelMissing($article);
+    }
+
+    public function test_campaign_form_requires_an_existing_category(): void
+    {
+        $this->actingAs($this->admin());
+        $data = [
+            'campaigner_id' => Campaigner::first()->id,
+            'title' => 'New Water Project',
+            'summary' => 'Summary',
+            'description' => 'Description',
+            'target_amount' => 10_000_000,
+            'status' => Campaign::STATUS_DRAFT,
+        ];
+
+        $this->post('/admin/campaigns', $data)->assertSessionHasErrors('category_id');
+        $this->post('/admin/campaigns', $data + ['category_id' => 999])->assertSessionHasErrors('category_id');
+        $this->assertDatabaseMissing('campaigns', ['title' => 'New Water Project']);
+
+        $category = Category::where('slug', 'health')->firstOrFail();
+        $this->post('/admin/campaigns', $data + ['category_id' => $category->id])->assertSessionHasNoErrors();
+
+        $campaign = Campaign::where('title', 'New Water Project')->firstOrFail();
+        $this->assertTrue($campaign->category->is($category));
+        $this->assertSame(Campaign::STATUS_DRAFT, $campaign->status);
+
+        $this->put("/admin/campaigns/{$campaign->slug}", $data + ['category_id' => ''])->assertSessionHasErrors('category_id');
+        $this->assertTrue($campaign->fresh()->category->is($category));
     }
 
     public function test_admin_can_record_withdrawals_within_available_funds(): void

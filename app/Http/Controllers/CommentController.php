@@ -18,6 +18,8 @@ class CommentController extends Controller
      */
     public function index(Request $request, Campaign $campaign): View
     {
+        abort_if($campaign->isDraft(), 404);
+
         $comments = $campaign->comments()->with(['user', 'donation'])->latest()->paginate(5);
 
         $amenedIds = $request->user()
@@ -30,6 +32,8 @@ class CommentController extends Controller
 
     public function store(Request $request, Campaign $campaign): RedirectResponse
     {
+        abort_if($campaign->isDraft(), 404);
+
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:3', 'max:1000'],
         ]);

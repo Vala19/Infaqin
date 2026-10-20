@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaigner extends Model
 {
-    protected $fillable = ['name', 'slug', 'avatar', 'bio', 'location', 'is_verified'];
+    protected $fillable = ['name', 'slug', 'avatar', 'bio', 'location', 'is_verified', 'is_internal'];
 
     protected function casts(): array
     {
-        return ['is_verified' => 'boolean'];
+        return ['is_verified' => 'boolean', 'is_internal' => 'boolean'];
     }
 
     public function campaigns(): HasMany

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\Campaigner;
+use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +19,7 @@ class CampaignController extends Controller
     {
         $term = $request->string('q')->limit(100)->toString();
 
-        $campaigns = Campaign::with('campaigner')
+        $campaigns = Campaign::with(['campaigner', 'category'])
             ->withCount('withdrawals')
             ->when($term, fn ($query) => $query->where('title', 'like', '%'.addcslashes($term, '%_\\').'%'))
             ->latest()
@@ -31,8 +32,9 @@ class CampaignController extends Controller
     public function create(): View
     {
         return view('admin.campaigns.form', [
-            'campaign' => new Campaign(['status' => 'active', 'category' => 'education']),
+            'campaign' => new Campaign(['status' => Campaign::STATUS_ACTIVE]),
             'campaigners' => Campaigner::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
         ]);
     }
 
@@ -55,6 +57,7 @@ class CampaignController extends Controller
         return view('admin.campaigns.form', [
             'campaign' => $campaign,
             'campaigners' => Campaigner::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
         ]);
     }
 
@@ -89,7 +92,7 @@ class CampaignController extends Controller
         $data = $request->validate([
             'campaigner_id' => ['required', 'exists:campaigners,id'],
             'title' => ['required', 'string', 'max:200'],
-            'category' => ['required', Rule::in(array_keys(Campaign::CATEGORIES))],
+            'category_id' => ['required', 'exists:categories,id'],
             'summary' => ['required', 'string', 'max:300'],
             'description' => ['required', 'string', 'max:20000'],
             'location' => ['nullable', 'string', 'max:120'],

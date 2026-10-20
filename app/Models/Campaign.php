@@ -5,23 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
-    public const CATEGORIES = [
-        'education' => 'Education',
-        'mosque' => 'Mosque',
-        'quran' => "Qur'an",
-        'health' => 'Health',
-        'disaster' => 'Disaster Relief',
-        'orphans' => 'Orphans',
-    ];
+    public const STATUS_DRAFT = 'draft';
 
-    public const STATUSES = ['active', 'completed', 'closed'];
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_CLOSED = 'closed';
+
+    public const STATUSES = [self::STATUS_DRAFT, self::STATUS_ACTIVE, self::STATUS_CLOSED];
+
+    /**
+     * Statuses shown on public pages; drafts are only visible in the admin panel.
+     */
+    public const PUBLIC_STATUSES = [self::STATUS_ACTIVE, self::STATUS_CLOSED];
 
     protected $fillable = [
-        'campaigner_id', 'title', 'slug', 'category', 'image', 'summary', 'description',
+        'campaigner_id', 'category_id', 'title', 'slug', 'image', 'summary', 'description',
         'location', 'target_amount', 'deadline', 'is_urgent', 'is_featured', 'status',
     ];
 
@@ -47,6 +50,11 @@ class Campaign extends Model
         return $this->belongsTo(Campaigner::class);
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
     public function donations(): HasMany
     {
         return $this->hasMany(Donation::class);
@@ -62,9 +70,29 @@ class Campaign extends Model
         return $this->hasMany(Comment::class);
     }
 
+    public function news(): HasMany
+    {
+        return $this->hasMany(News::class);
+    }
+
+    public function wishlistedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'wishlists')->withTimestamps();
+    }
+
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('status', 'active');
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::PUBLIC_STATUSES);
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
     }
 
     public function progress(): int
@@ -87,7 +115,7 @@ class Campaign extends Model
 
     public function categoryLabel(): string
     {
-        return __(self::CATEGORIES[$this->category] ?? ucfirst($this->category));
+        return $this->category ? __($this->category->name) : '';
     }
 
     public function imageUrl(): string
@@ -97,7 +125,7 @@ class Campaign extends Model
 
     public function isOpen(): bool
     {
-        return $this->status === 'active'
+        return $this->status === self::STATUS_ACTIVE
             && ($this->deadline === null || $this->deadline->endOfDay()->isFuture());
     }
 }

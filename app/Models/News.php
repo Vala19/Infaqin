@@ -10,7 +10,7 @@ class News extends Model
 {
     public const CATEGORIES = ['World', 'Humanity', 'Disaster', 'Education', 'Health', 'Infaqin'];
 
-    protected $fillable = ['title', 'slug', 'category', 'image', 'excerpt', 'body', 'published_at'];
+    protected $fillable = ['campaign_id', 'title', 'slug', 'category', 'image', 'excerpt', 'body', 'published_at'];
 
     protected function casts(): array
     {
@@ -25,6 +25,11 @@ class News extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function scopePublished(Builder $query): Builder

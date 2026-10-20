@@ -37,12 +37,13 @@
                     </select>
                 </div>
                 <div>
-                    <label for="category" class="label">Category</label>
-                    <select id="category" name="category" class="input">
-                        @foreach (\App\Models\Campaign::CATEGORIES as $key => $label)
-                            <option value="{{ $key }}" @selected(old('category', $campaign->category) === $key)>{{ $label }}</option>
+                    <label for="category_id" class="label">Category</label>
+                    <select id="category_id" name="category_id" class="input">
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}" @selected((int) old('category_id', $campaign->category_id) === $category->id)>{{ $category->name }}</option>
                         @endforeach
                     </select>
+                    @error('category_id') <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label for="status" class="label">Status</label>

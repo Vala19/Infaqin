@@ -16,7 +16,7 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasFactory, Notifiable;
 
     /**
-     * is_admin is intentionally not mass assignable.
+     * is_admin and is_active are intentionally not mass assignable.
      *
      * @var list<string>
      */
@@ -47,6 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'date_of_birth' => 'date',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -63,6 +64,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function amenedComments(): BelongsToMany
     {
         return $this->belongsToMany(Comment::class, 'comment_amens')->withPivot('created_at');
+    }
+
+    public function wishlist(): BelongsToMany
+    {
+        return $this->belongsToMany(Campaign::class, 'wishlists')->withTimestamps();
     }
 
     public function initials(): string

@@ -15,7 +15,7 @@
         <nav class="flex items-center gap-1.5 text-sm text-ink/60" aria-label="{{ __('Breadcrumb') }}">
             <a href="{{ route('campaigns.index') }}" class="hover:text-brand">{{ __('Campaigns') }}</a>
             <x-icon name="chevron-right" class="size-4" />
-            <a href="{{ route('campaigns.index', ['category' => [$campaign->category]]) }}" class="hover:text-brand">{{ $campaign->categoryLabel() }}</a>
+            <a href="{{ route('campaigns.index', ['category' => [$campaign->category?->slug]]) }}" class="hover:text-brand">{{ $campaign->categoryLabel() }}</a>
             <x-icon name="chevron-right" class="size-4" />
             <span class="truncate text-ink">{{ $campaign->title }}</span>
         </nav>

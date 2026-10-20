@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Donation extends Model
@@ -14,9 +15,11 @@ class Donation extends Model
 
     public const STATUS_PENDING = 'pending';
 
+    public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_FAILED = 'failed';
 
-    public const STATUSES = [self::STATUS_PAID, self::STATUS_PENDING, self::STATUS_FAILED];
+    public const STATUSES = [self::STATUS_PAID, self::STATUS_PENDING, self::STATUS_EXPIRED, self::STATUS_FAILED];
 
     public const PAYMENT_METHODS = [
         'qris' => 'QRIS',
@@ -90,7 +93,7 @@ class Donation extends Model
             ->where('created_at', '<', now()->subHours(self::PAYMENT_WINDOW_HOURS));
     }
 
-    public function expiresAt(): ?\Illuminate\Support\Carbon
+    public function expiresAt(): ?Carbon
     {
         return $this->created_at?->copy()->addHours(self::PAYMENT_WINDOW_HOURS);
     }
