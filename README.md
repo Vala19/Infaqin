@@ -113,3 +113,32 @@ Error pages for 401, 403, 404, 419, 429, 500 and 503 live in `resources/views/er
 ```bash
 php artisan test
 ```
+
+### End-to-end tests (Playwright)
+
+The E2E suite in `tests/e2e/` drives a real browser against a separate server on `http://127.0.0.1:8001` with its own database (`database/e2e.sqlite`). Your local `database/database.sqlite` is never touched.
+
+One-time setup:
+
+```bash
+npm install
+npx playwright install chromium
+cp .env.e2e.example .env.e2e      # then fill in MIDTRANS_SERVER_KEY and MIDTRANS_CLIENT_KEY (sandbox)
+```
+
+`APP_KEY` in `.env.e2e` is generated on the first run. Keep `APP_ENV=e2e` and `DB_DATABASE=database/e2e.sqlite`: the reset script refuses to run with any other database path.
+
+Run:
+
+```bash
+npm run test:e2e                  # builds assets, resets e2e.sqlite, starts the server, runs the suite
+npx playwright test --ui          # interactive mode (run `npm run build` first)
+npx playwright show-report        # HTML report of the last run
+npm run e2e:reset                 # only recreate and seed e2e.sqlite
+```
+
+Playwright starts `php artisan serve --env=e2e --port=8001` itself, after `npm run e2e:reset` has recreated `database/e2e.sqlite` with `migrate --seed`. Port 8001 must be free.
+
+- The donation tests call the Midtrans **sandbox**. They create a Snap token, check that the Snap popup appears, and cancel the donation. They never pay. Without sandbox keys in `.env.e2e`, those two tests fail with "No Snap token".
+- Stop `npm run dev` before running the suite. While `public/hot` exists, pages load assets from the Vite dev server instead of `public/build`.
+- Mail is written to `storage/logs/laravel.log` (`MAIL_MAILER=log`).

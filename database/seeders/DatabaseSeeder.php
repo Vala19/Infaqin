@@ -202,6 +202,20 @@ class DatabaseSeeder extends Seeder
             }
         }
 
+        // A draft is only visible in /admin; public pages return 404 for it.
+        Campaign::create([
+            'campaigner_id' => $syaamil->id,
+            'category_id' => $categories['education'],
+            'title' => 'Ramadan Iftar for Pesantren Students',
+            'slug' => 'ramadan-iftar-for-pesantren-students',
+            'summary' => 'Daily iftar meals for 500 pesantren students during Ramadan.',
+            'description' => "Still being prepared by the Syaamil team.\n\nThis programme will fund daily iftar meals for 500 students across 10 pesantren in West Java.",
+            'location' => 'West Java',
+            'target_amount' => 75_000_000,
+            'deadline' => now()->addDays(120)->toDateString(),
+            'status' => Campaign::STATUS_DRAFT,
+        ]);
+
         $this->seedNews($admin);
     }
 

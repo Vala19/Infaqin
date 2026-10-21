@@ -36,6 +36,9 @@ resources/css/app.css        Tailwind 4 + token brand
 routes/web.php               Semua route web
 routes/console.php           Command `donations:expire` (dijadwalkan per jam)
 tests/Feature/, tests/Unit/  Test PHPUnit
+tests/e2e/                   Test E2E Playwright (support.js = akun demo & helper, auth.setup.js = sesi login)
+scripts/e2e-reset.mjs        Buat ulang & seed database/e2e.sqlite (menolak path DB lain)
+playwright.config.js         webServer: e2e:reset lalu `php artisan serve --env=e2e --port=8001`
 ```
 
 ## Model & relasi
@@ -71,11 +74,27 @@ php artisan test tests/Feature/AdminTest.php
 vendor/bin/pint                           # format kode sebelum selesai
 ```
 
+E2E (Playwright, browser sungguhan ke `http://127.0.0.1:8001` dengan `.env.e2e` dan `database/e2e.sqlite`):
+
+```bash
+cp .env.e2e.example .env.e2e              # sekali; kunci Midtrans sandbox diisi pemilik proyek
+npx playwright install chromium           # sekali
+npm run test:e2e                          # build aset, reset e2e.sqlite, jalankan server & suite
+npx playwright test tests/e2e/admin.spec.js
+npm run e2e:reset                         # hanya reset e2e.sqlite
+```
+
+- Suite E2E memakai data `DatabaseSeeder` (akun demo, campaign GEMAS, draft "Ramadan Iftar for Pesantren Students"). Jika data seed yang dipakai berubah, perbarui `tests/e2e/support.js`.
+- Tes di `donation.spec.js` memanggil Midtrans sandbox sungguhan (Snap token & cancel), jadi butuh kunci di `.env.e2e`. Tes ini tidak pernah membayar.
+- `workers: 1`, karena satu file SQLite dan `php artisan serve` single-thread.
+- Hentikan `npm run dev` dulu: selama `public/hot` ada, halaman memuat aset dari Vite dev server.
+- `php artisan test` tetap wajib lulus (aturan 5). E2E adalah lapisan tambahan, bukan pengganti test PHPUnit.
+
 Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshDatabase`. Hanya ada `UserFactory`; model lain dibuat langsung di test (lihat `setUp()` di `tests/Feature/DonationFlowTest.php`).
 
 ## Environment
 
-- **Jangan pernah membaca atau menampilkan isi `.env`.** Jika butuh tahu variabel apa yang ada, lihat `.env.example` atau `config/*.php`.
+- **Jangan pernah membaca atau menampilkan isi `.env` maupun `.env.e2e`** (keduanya ada di deny list `.claude/settings.json`). Jika butuh tahu variabel apa yang ada, lihat `.env.example`, `.env.e2e.example`, atau `config/*.php`.
 - Midtrans: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`. Variabel ini dipetakan di `config/services.php` ke `services.midtrans.*`, dan kode aplikasi membacanya lewat `config('services.midtrans.*')`. Jangan memanggil `env()` di luar folder `config/`, karena nilainya `null` setelah `config:cache`.
 - Webhook Midtrans butuh URL publik: saat lokal, jalankan ngrok dan daftarkan `https://<host>/payments/midtrans/notification` sebagai Payment Notification URL di dashboard Midtrans sandbox. Test tidak pernah memanggil Midtrans (`Http::preventStrayRequests()` di `tests/TestCase.php`; helper di `tests/Concerns/InteractsWithMidtrans.php`).
 - Mail lokal memakai SMTP Mailtrap (bukan driver `log`): email verifikasi dan kuitansi masuk ke inbox Mailtrap. Test tetap memakai mailer `array`.
