@@ -97,6 +97,7 @@ Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshData
 - **Jangan pernah membaca atau menampilkan isi `.env` maupun `.env.e2e`** (keduanya ada di deny list `.claude/settings.json`). Jika butuh tahu variabel apa yang ada, lihat `.env.example`, `.env.e2e.example`, atau `config/*.php`.
 - Midtrans: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`. Variabel ini dipetakan di `config/services.php` ke `services.midtrans.*`, dan kode aplikasi membacanya lewat `config('services.midtrans.*')`. Jangan memanggil `env()` di luar folder `config/`, karena nilainya `null` setelah `config:cache`.
 - Webhook Midtrans butuh URL publik: saat lokal, jalankan ngrok dan daftarkan `https://<host>/payments/midtrans/notification` sebagai Payment Notification URL di dashboard Midtrans sandbox. Test tidak pernah memanggil Midtrans (`Http::preventStrayRequests()` di `tests/TestCase.php`; helper di `tests/Concerns/InteractsWithMidtrans.php`).
+- Zona waktu aplikasi `Asia/Jakarta` (WIB, `APP_TIMEZONE`): `now()`/`today()`, timestamp yang disimpan, jadwal `routes/console.php`, dan `expiry.start_time` Snap (`+0700`) semuanya WIB.
 - Mail lokal memakai SMTP Mailtrap (bukan driver `log`): email verifikasi dan kuitansi masuk ke inbox Mailtrap. Test tetap memakai mailer `array`.
 
 ## Aturan wajib

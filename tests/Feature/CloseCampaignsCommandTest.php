@@ -7,6 +7,7 @@ use App\Models\Campaigner;
 use App\Models\Category;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class CloseCampaignsCommandTest extends TestCase
@@ -85,5 +86,30 @@ class CloseCampaignsCommandTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame('0 0 * * *', $event->expression);
+    }
+
+    public function test_close_command_runs_at_midnight_wib_not_utc(): void
+    {
+        $event = collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains($event->command, 'campaigns:close'));
+
+        $this->assertSame('Asia/Jakarta', $event->timezone);
+
+        // 00:00 WIB on 22 Oct is still 21 Oct 17:00 UTC.
+        $this->travelTo(Carbon::parse('2026-10-21 17:00:00', 'UTC'));
+        $this->assertTrue($event->isDue(app()));
+
+        $this->travelTo(Carbon::parse('2026-10-22 00:00:00', 'UTC'));
+        $this->assertFalse($event->isDue(app()));
+    }
+
+    public function test_deadline_day_ends_at_midnight_wib(): void
+    {
+        $campaign = $this->campaign('wib-deadline', '2026-10-21');
+
+        $this->travelTo(Carbon::parse('2026-10-21 17:00:00', 'UTC'));
+        $this->artisan('campaigns:close')->assertSuccessful();
+
+        $this->assertSame(Campaign::STATUS_CLOSED, $campaign->fresh()->status);
     }
 }

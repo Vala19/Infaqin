@@ -12,6 +12,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -71,6 +72,18 @@ class MidtransPaymentTest extends TestCase
     }
 
     // --- Creating the Snap transaction ---------------------------------------------------------
+
+    public function test_snap_expiry_start_time_is_sent_in_wib(): void
+    {
+        $this->fakeSnap('token-wib');
+        $this->travelTo(Carbon::parse('2026-10-21 01:30:00', 'UTC'));
+
+        $this->actingAs($this->user)->post("/campaigns/{$this->campaign->slug}/donate", [
+            'amount' => '75.000', 'email' => 'receipt@example.com',
+        ]);
+
+        Http::assertSent(fn (Request $request) => $request['expiry']['start_time'] === '2026-10-21 08:30:00 +0700');
+    }
 
     public function test_store_requests_a_snap_token_and_opens_the_payment_page(): void
     {
@@ -472,5 +485,6 @@ class MidtransPaymentTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame('0 * * * *', $event->expression);
+        $this->assertSame('Asia/Jakarta', $event->timezone);
     }
 }
