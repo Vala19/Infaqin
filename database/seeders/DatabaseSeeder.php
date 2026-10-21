@@ -154,7 +154,8 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        $pending = new Donation(['campaign_id' => $campaigns[4]->id, 'amount' => 150_000, 'donor_name' => $demo->name, 'email' => $demo->email, 'payment_method' => 'bca_va']);
+        // Seeded pending donations have no Snap token (no Midtrans session); the payment page offers only cancel.
+        $pending = new Donation(['campaign_id' => $campaigns[4]->id, 'amount' => 150_000, 'donor_name' => $demo->name, 'email' => $demo->email]);
         $pending->user()->associate($demo);
         $pending->status = Donation::STATUS_PENDING;
         $pending->save();
@@ -164,6 +165,12 @@ class DatabaseSeeder extends Seeder
         $failed->status = Donation::STATUS_FAILED;
         $failed->created_at = now()->subDays(30);
         $failed->save();
+
+        $expired = new Donation(['campaign_id' => $campaigns[5]->id, 'amount' => 20_000, 'donor_name' => $demo->name, 'email' => $demo->email]);
+        $expired->user()->associate($demo);
+        $expired->status = Donation::STATUS_EXPIRED;
+        $expired->created_at = now()->subDays(45);
+        $expired->save();
 
         // Recalculate campaign totals from paid donations and record public withdrawals.
         foreach ($campaigns as $campaign) {

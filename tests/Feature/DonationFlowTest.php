@@ -7,14 +7,21 @@ use App\Models\Campaigner;
 use App\Models\Category;
 use App\Models\Donation;
 use App\Models\User;
-use App\Notifications\DonationReceipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
+use Tests\Concerns\InteractsWithMidtrans;
 use Tests\TestCase;
 
 class DonationFlowTest extends TestCase
 {
+    use InteractsWithMidtrans;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->configureMidtrans();
+    }
 
     private function campaign(array $attributes = []): Campaign
     {
@@ -35,13 +42,13 @@ class DonationFlowTest extends TestCase
 
     public function test_full_donation_flow_updates_campaign_and_unlocks_prayer(): void
     {
+        $this->fakeSnap();
         $user = User::factory()->create();
         $campaign = $this->campaign();
 
         $this->actingAs($user)->post("/campaigns/{$campaign->slug}/donate", [
             'amount' => '150.000',
             'email' => $user->email,
-            'payment_method' => 'qris',
             'is_anonymous' => '1',
             'on_behalf_of' => 'My mother',
         ])->assertRedirect();
@@ -54,8 +61,7 @@ class DonationFlowTest extends TestCase
         // Prayer is locked until the donation is paid.
         $this->post("/campaigns/{$campaign->slug}/comments", ['body' => 'Semoga berkah'])->assertSessionHas('error');
 
-        $this->post("/donations/{$donation->reference}/confirm")->assertRedirect();
-        $this->post("/donations/{$donation->reference}/confirm"); // idempotent
+        $this->notify($donation)->assertOk();
 
         $campaign->refresh();
         $this->assertSame(150_000, $campaign->collected_amount);
@@ -68,47 +74,24 @@ class DonationFlowTest extends TestCase
         $this->postJson("/comments/{$comment->id}/amen")->assertJson(['amened' => false, 'count' => 0]);
     }
 
-    public function test_confirming_sends_receipt_and_expired_payments_cannot_be_confirmed(): void
-    {
-        Notification::fake();
-        $user = User::factory()->create();
-        $campaign = $this->campaign();
-
-        $make = function () use ($user, $campaign) {
-            $donation = new Donation(['campaign_id' => $campaign->id, 'amount' => 50_000, 'donor_name' => $user->name, 'email' => $user->email, 'payment_method' => 'qris']);
-            $donation->user()->associate($user);
-            $donation->status = 'pending';
-            $donation->save();
-
-            return $donation;
-        };
-
-        $this->actingAs($user);
-
-        $fresh = $make();
-        $this->post("/donations/{$fresh->reference}/confirm");
-        Notification::assertSentOnDemand(DonationReceipt::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === $user->email);
-
-        $stale = $make();
-        $stale->forceFill(['created_at' => now()->subHours(Donation::PAYMENT_WINDOW_HOURS + 1)])->save();
-        $this->post("/donations/{$stale->reference}/confirm")->assertSessionHas('error');
-        $this->assertSame('failed', $stale->fresh()->status);
-        $this->assertSame(50_000, $campaign->fresh()->collected_amount);
-
-        $old = $make();
-        $old->forceFill(['created_at' => now()->subDays(2)])->save();
-        $this->artisan('donations:expire')->assertSuccessful();
-        $this->assertSame('failed', $old->fresh()->status);
-    }
-
     public function test_donation_validation(): void
     {
         $user = User::factory()->create();
         $campaign = $this->campaign();
 
         $this->actingAs($user)->post("/campaigns/{$campaign->slug}/donate", [
-            'amount' => '5000', 'email' => 'not-an-email', 'payment_method' => 'bitcoin',
-        ])->assertSessionHasErrors(['amount', 'email', 'payment_method']);
+            'amount' => '5000', 'email' => 'not-an-email',
+        ])->assertSessionHasErrors(['amount', 'email']);
+    }
+
+    public function test_donation_form_has_no_payment_method_choice(): void
+    {
+        $campaign = $this->campaign();
+
+        $this->actingAs(User::factory()->create())->get("/campaigns/{$campaign->slug}/donate")
+            ->assertOk()
+            ->assertDontSee('name="payment_method"', false)
+            ->assertSee('Chosen in the payment window');
     }
 
     public function test_closed_campaign_rejects_donations(): void
@@ -119,19 +102,20 @@ class DonationFlowTest extends TestCase
             ->get("/campaigns/{$campaign->slug}/donate")->assertRedirect("/campaigns/{$campaign->slug}");
     }
 
-    public function test_users_cannot_see_or_confirm_other_users_donations(): void
+    public function test_users_cannot_see_poll_or_cancel_other_users_donations(): void
     {
         $owner = User::factory()->create();
         $campaign = $this->campaign();
 
-        $donation = new Donation(['campaign_id' => $campaign->id, 'amount' => 50_000, 'donor_name' => 'Owner', 'email' => $owner->email, 'payment_method' => 'qris']);
+        $donation = new Donation(['campaign_id' => $campaign->id, 'amount' => 50_000, 'donor_name' => 'Owner', 'email' => $owner->email]);
         $donation->user()->associate($owner);
         $donation->status = 'pending';
         $donation->save();
 
         $this->actingAs(User::factory()->create());
         $this->get("/donations/{$donation->reference}")->assertNotFound();
-        $this->post("/donations/{$donation->reference}/confirm")->assertNotFound();
+        $this->getJson("/donations/{$donation->reference}/status")->assertNotFound();
+        $this->post("/donations/{$donation->reference}/cancel")->assertNotFound();
         $this->assertSame('pending', $donation->fresh()->status);
     }
 }

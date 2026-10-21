@@ -10,7 +10,7 @@
         'active' => 'bg-mint-50 text-brand-700 ring-brand/30',
         'closed' => 'bg-paper text-ink ring-mist',
     ];
-    $labels = ['paid' => __('Success'), 'pending' => __('Waiting payment'), 'failed' => __('Cancelled')];
+    $labels = array_map(fn ($label) => __($label), \App\Models\Donation::STATUS_LABELS);
 @endphp
 
 <span {{ $attributes->merge(['class' => 'chip ring-1 '.($styles[$status] ?? $styles['closed'])]) }}>{{ $labels[$status] ?? __(ucfirst($status)) }}</span>

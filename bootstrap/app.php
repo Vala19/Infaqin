@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [SetLocale::class, SecurityHeaders::class]);
 
+        // Midtrans cannot send a CSRF token; the handler verifies signature_key instead.
+        $middleware->validateCsrfTokens(except: ['payments/midtrans/notification']);
+
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
         ]);

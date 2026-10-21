@@ -52,8 +52,8 @@
                         <label for="f-status" class="label">{{ __('Status') }}</label>
                         <select id="f-status" name="status" class="input h-11">
                             <option value="">{{ __('All statuses') }}</option>
-                            @foreach (['paid' => __('Success'), 'pending' => __('Waiting payment'), 'failed' => __('Cancelled')] as $value => $label)
-                                <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>
+                            @foreach (\App\Models\Donation::STATUS_LABELS as $value => $label)
+                                <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ __($label) }}</option>
                             @endforeach
                         </select>
                     </div>

@@ -1,9 +1,5 @@
 @php
     $user = auth()->user();
-    $methodGroups = [
-        __('E-wallet & QRIS') => ['qris', 'gopay', 'ovo', 'dana'],
-        __('Virtual account') => ['bca_va', 'mandiri_va', 'bni_va'],
-    ];
     $initialAmount = old('amount', $prefillAmount);
 @endphp
 
@@ -15,13 +11,11 @@
         <form method="POST" action="{{ route('donations.store', $campaign) }}" class="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]"
               x-data="{
                   amount: @js($initialAmount ? (int) preg_replace('/\D/', '', $initialAmount) : null),
-                  method: @js(old('payment_method')),
-                  methods: @js($methods),
                   anonymous: @js((bool) old('is_anonymous')),
                   busy: false,
                   get display() { return this.amount ? Number(this.amount).toLocaleString('id-ID') : '' },
                   setFromInput(value) { const n = String(value).replace(/\D/g, ''); this.amount = n ? Math.min(Number(n), {{ \App\Models\Donation::MAX_AMOUNT }}) : null },
-                  get valid() { return this.amount >= {{ \App\Models\Donation::MIN_AMOUNT }} && this.method },
+                  get valid() { return this.amount >= {{ \App\Models\Donation::MIN_AMOUNT }} },
               }"
               @submit="busy = true">
             @csrf
@@ -71,27 +65,6 @@
                         </p>
                     </div>
                 </section>
-
-                {{-- Payment method --}}
-                <section class="card p-6" aria-labelledby="method-title">
-                    <h2 id="method-title" class="font-semibold text-night">{{ __('3. Payment method') }}</h2>
-                    @foreach ($methodGroups as $group => $keys)
-                        <fieldset class="mt-4">
-                            <legend class="mb-2 text-xs font-semibold tracking-wide text-ink/60 uppercase">{{ $group }}</legend>
-                            <div class="grid gap-2 sm:grid-cols-2">
-                                @foreach ($keys as $key)
-                                    <label class="flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 transition"
-                                           :class="method === '{{ $key }}' ? 'border-brand bg-mint-50' : 'border-mist hover:border-brand/50'">
-                                        <input type="radio" name="payment_method" value="{{ $key }}" x-model="method" class="size-4 accent-brand" required>
-                                        <x-icon :name="str_ends_with($key, '_va') ? 'wallet' : 'grid'" class="size-5 text-forest" />
-                                        <span class="text-sm font-medium text-night">{{ $methods[$key] }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </fieldset>
-                    @endforeach
-                    @error('payment_method') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
-                </section>
             </div>
 
             {{-- Summary --}}
@@ -105,7 +78,7 @@
 
                         <dl class="mt-5 space-y-2 border-t border-mist/60 pt-4 text-sm">
                             <div class="flex justify-between"><dt class="text-ink/70">{{ __('Donation') }}</dt><dd class="font-medium" x-text="amount ? 'Rp' + display : '—'">—</dd></div>
-                            <div class="flex justify-between"><dt class="text-ink/70">{{ __('Method') }}</dt><dd class="font-medium" x-text="method ? methods[method] : '—'">—</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-ink/70">{{ __('Method') }}</dt><dd class="text-right text-ink/70">{{ __('Chosen in the payment window') }}</dd></div>
                             <div class="flex justify-between"><dt class="text-ink/70">{{ __('Platform fee') }}</dt><dd class="font-medium text-brand">{{ __('Free') }}</dd></div>
                             <div class="flex justify-between border-t border-mist/60 pt-3 text-base"><dt class="font-semibold">{{ __('Total') }}</dt><dd class="font-bold text-brand" x-text="amount ? 'Rp' + display : 'Rp0'">Rp0</dd></div>
                         </dl>

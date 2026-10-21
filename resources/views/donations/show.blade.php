@@ -1,10 +1,19 @@
 @php
     $campaign = $donation->campaign;
-    $isVa = str_ends_with($donation->payment_method, '_va');
-    $vaNumber = '8808'.str_pad((string) (crc32($donation->reference) % 10_000_000_000), 10, '0', STR_PAD_LEFT);
+    $heading = match ($donation->status) {
+        'paid' => 'Jazakallahu khairan!',
+        'expired' => __('Payment expired'),
+        default => __('Donation cancelled'),
+    };
 @endphp
 
 <x-layouts.app :title="__('Donation :reference', ['reference' => $donation->reference])">
+    @if ($donation->status === 'pending' && $donation->snap_token)
+        @push('head')
+            <script src="{{ $snapJsUrl }}" data-client-key="{{ $clientKey }}"></script>
+        @endpush
+    @endif
+
     <div class="container-page max-w-2xl py-12">
         @if ($donation->status === 'pending')
             <div class="card overflow-hidden">
@@ -17,47 +26,34 @@
                 </div>
 
                 <div class="space-y-6 p-6 sm:p-8">
-                    @if ($isVa)
-                        <div x-data="{ copied: false }">
-                            <p class="text-sm text-ink/70">{{ __(':method number', ['method' => $donation->paymentMethodLabel()]) }}</p>
-                            <div class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-paper px-4 py-3">
-                                <span class="font-mono text-xl font-semibold tracking-wider text-night">{{ chunk_split($vaNumber, 4, ' ') }}</span>
-                                <button type="button" @click="navigator.clipboard.writeText('{{ $vaNumber }}'); copied = true; setTimeout(() => copied = false, 2000)" class="btn-ghost px-3 text-brand">
-                                    <x-icon name="copy" class="size-4" /> <span x-text="copied ? @js(__('Copied')) : @js(__('Copy'))">{{ __('Copy') }}</span>
-                                </button>
+                    @if ($donation->snap_token)
+                        <div x-data="snapPayment(@js($donation->snap_token), @js(route('donations.status', $donation)), @js((bool) session('open_snap')))" class="space-y-4">
+                            <ol class="list-decimal space-y-1.5 pl-5 text-sm text-ink/80">
+                                <li>{{ __('Press "Pay now" and choose QRIS, e-wallet, virtual account or another method in the Midtrans window.') }}</li>
+                                <li>{{ __('Follow the instructions in that window to complete the payment.') }}</li>
+                                <li>{{ __('Your status updates automatically once Midtrans confirms the payment.') }}</li>
+                            </ol>
+
+                            <button type="button" @click="pay()" class="btn-primary h-12 w-full"><x-icon name="lock" class="size-5" /> {{ __('Pay now') }}</button>
+
+                            <p x-cloak x-show="polling" class="flex items-center justify-center gap-2 text-sm text-ink/70" role="status">
+                                <x-icon name="clock" class="size-4" /> {{ __('Waiting for confirmation from Midtrans…') }}
+                            </p>
+                            <div x-cloak x-show="timedOut" class="rounded-xl bg-paper px-4 py-3 text-center text-sm text-ink/80">
+                                <p>{{ __('No confirmation yet. If you have paid, it can take a few minutes.') }}</p>
+                                <button type="button" @click="window.location.reload()" class="btn-outline mt-3 h-10 px-5">{{ __('Refresh status') }}</button>
                             </div>
                         </div>
                     @else
-                        <div class="text-center">
-                            <p class="text-sm text-ink/70">{{ __('Scan with :method or any QRIS-enabled app', ['method' => $donation->paymentMethodLabel()]) }}</p>
-                            {{-- Placeholder QR: replace with the payment gateway's QR string. --}}
-                            <div class="mx-auto mt-4 grid size-48 place-items-center rounded-2xl border-2 border-dashed border-brand/40 bg-mint-50">
-                                <x-logo variant="icon" class="h-16 opacity-80" />
-                                <span class="text-xs text-ink/60">{{ __('QR placeholder') }}</span>
-                            </div>
+                        <div class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+                            {{ __('This donation has no payment session. Cancel it and make a new donation.') }}
                         </div>
                     @endif
 
-                    <ol class="list-decimal space-y-1.5 pl-5 text-sm text-ink/80">
-                        <li>{{ $isVa ? __('Open your mobile banking app and choose transfer to virtual account.') : __('Open your e-wallet app and scan the QR code.') }}</li>
-                        <li>{!! __('Make sure the amount is exactly :amount.', ['amount' => '<strong>'.e(rupiah($donation->amount)).'</strong>']) !!}</li>
-                        <li>{{ __('Confirm the payment. Your donation is recorded instantly.') }}</li>
-                    </ol>
-
-                    <div class="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800 ring-1 ring-amber-200">
-                        {{ __('Demo mode: no real payment gateway is connected. Use the button below to simulate a successful payment.') }}
-                    </div>
-
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <form method="POST" action="{{ route('donations.confirm', $donation) }}" class="flex-1" x-data="{ busy: false }" @submit="busy = true">
-                            @csrf
-                            <button class="btn-primary h-12 w-full" :disabled="busy"><x-icon name="check" class="size-5" /> {{ __('I have paid') }}</button>
-                        </form>
-                        <form method="POST" action="{{ route('donations.cancel', $donation) }}" onsubmit="return confirm({{ Js::from(__('Cancel this donation?')) }})">
-                            @csrf
-                            <button class="btn-ghost h-12 w-full text-red-600 hover:bg-red-50">{{ __('Cancel') }}</button>
-                        </form>
-                    </div>
+                    <form method="POST" action="{{ route('donations.cancel', $donation) }}" onsubmit="return confirm({{ Js::from(__('Cancel this donation?')) }})">
+                        @csrf
+                        <button class="btn-ghost h-12 w-full text-red-600 hover:bg-red-50">{{ __('Cancel donation') }}</button>
+                    </form>
                 </div>
             </div>
         @else
@@ -66,7 +62,7 @@
                     <span class="mx-auto grid size-16 place-items-center rounded-full bg-white/20">
                         <x-icon :name="$donation->status === 'paid' ? 'check' : 'x'" class="size-9" />
                     </span>
-                    <h1 class="mt-4 text-2xl font-bold">{{ $donation->status === 'paid' ? 'Jazakallahu khairan!' : __('Donation cancelled') }}</h1>
+                    <h1 class="mt-4 text-2xl font-bold">{{ $heading }}</h1>
                     <p class="mt-1 text-white/85">
                         {{ $donation->status === 'paid' ? __('Your kindness is on its way to :campaign.', ['campaign' => $campaign->title]) : __('No money was taken for this donation.') }}
                     </p>

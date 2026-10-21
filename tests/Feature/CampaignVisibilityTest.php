@@ -57,7 +57,7 @@ class CampaignVisibilityTest extends TestCase
         $this->get("/campaigns/{$draft->slug}")->assertNotFound();
         $this->get("/campaigns/{$draft->slug}/donate")->assertNotFound();
         $this->post("/campaigns/{$draft->slug}/donate", [
-            'amount' => 50_000, 'email' => 'user@infaqin.test', 'payment_method' => 'qris',
+            'amount' => 50_000, 'email' => 'user@infaqin.test',
         ])->assertNotFound();
         $this->post("/campaigns/{$draft->slug}/comments", ['body' => 'Aamiin ya Allah'])->assertNotFound();
         $this->assertSame(0, $draft->donations()->count());

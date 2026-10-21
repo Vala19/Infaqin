@@ -15,7 +15,7 @@ class CategoryMigrationTest extends TestCase
     /**
      * Migrations added on 2026-10-20 after create_categories_table.
      */
-    private const STEPS_AFTER_CATEGORIES = 7;
+    private const STEPS_AFTER_CATEGORIES = 8;
 
     private array $sharedConnections = [];
 

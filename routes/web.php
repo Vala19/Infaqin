@@ -11,6 +11,7 @@ use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\MidtransNotificationController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,9 @@ Route::view('/faq', 'faq')->name('faq');
 Route::get('/news', [NewsController::class, 'index'])->name('news.index');
 Route::get('/news/{news}', [NewsController::class, 'show'])->name('news.show');
 
+Route::post('/payments/midtrans/notification', MidtransNotificationController::class)
+    ->middleware('throttle:120,1')->name('payments.midtrans.notification');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:10,1');
@@ -41,11 +45,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/home', HomeController::class)->name('home');
 
-    Route::get('/campaigns/{campaign}/donate', [DonationController::class, 'create'])->name('donations.create');
-    Route::post('/campaigns/{campaign}/donate', [DonationController::class, 'store'])->middleware('throttle:20,1')->name('donations.store');
-    Route::get('/donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
-    Route::post('/donations/{donation}/confirm', [DonationController::class, 'confirm'])->middleware('throttle:20,1')->name('donations.confirm');
-    Route::post('/donations/{donation}/cancel', [DonationController::class, 'cancel'])->name('donations.cancel');
+    Route::middleware('verified')->group(function () {
+        Route::get('/campaigns/{campaign}/donate', [DonationController::class, 'create'])->name('donations.create');
+        Route::post('/campaigns/{campaign}/donate', [DonationController::class, 'store'])->middleware('throttle:20,1')->name('donations.store');
+        Route::get('/donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
+        Route::get('/donations/{donation}/status', [DonationController::class, 'status'])->middleware('throttle:60,1')->name('donations.status');
+    });
+    Route::post('/donations/{donation}/cancel', [DonationController::class, 'cancel'])->middleware('throttle:10,1')->name('donations.cancel');
 
     Route::post('/campaigns/{campaign}/comments', [CommentController::class, 'store'])->middleware('throttle:10,1')->name('comments.store');
     Route::post('/comments/{comment}/amen', [CommentController::class, 'amen'])->middleware('throttle:60,1')->name('comments.amen');

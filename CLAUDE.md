@@ -22,6 +22,7 @@ app/
   Models/                    User, Campaigner, Campaign, Donation, Comment, News, Withdrawal
   Notifications/             DonationReceipt (email kuitansi)
   Providers/AppServiceProvider.php   preventLazyLoading, aturan Password default, view paginasi
+  Services/                  MidtransClient (Snap & Core API via Http client), DonationStatusUpdater (satu-satunya penulis status donasi, aturan 3)
   Support/helpers.php        rupiah(), rupiah_short() (di-autoload via composer "files")
 bootstrap/app.php            Registrasi middleware & alias 'admin'
 config/infaqin.php           Konten situs: locales, info perusahaan, fitur, testimoni, preset nominal, FAQ
@@ -44,7 +45,7 @@ tests/Feature/, tests/Unit/  Test PHPUnit
 | `User` | `users` | hasMany `Donation`, hasMany `Comment`, belongsToMany `Comment` via `comment_amens` (`amenedComments`) | Implement `MustVerifyEmail`. `is_admin` sengaja **tidak** mass-assignable. `kindnessStreak()` = minggu berturut-turut dengan donasi `paid`. |
 | `Campaigner` | `campaigners` | hasMany `Campaign` | `is_verified` = tanda perisai hijau. |
 | `Campaign` | `campaigns` | belongsTo `Campaigner`, hasMany `Donation`, hasMany `Withdrawal`, hasMany `Comment` | Route key `slug`. Status: `draft`/`active`/`closed`. `target_amount`, `collected_amount`, `donor_count` integer. `isOpen()` = aktif & belum lewat deadline. |
-| `Donation` | `donations` | belongsTo `User` (nullable), belongsTo `Campaign`, hasOne `Comment` | Route key `reference` (`INF-XXXXXXXXXX`, dibuat otomatis). Status: `pending`/`paid`/`expired`/`failed` (konstanta `STATUS_*`, termasuk `STATUS_EXPIRED`). `MIN_AMOUNT` 10.000, `MAX_AMOUNT` 1.000.000.000, `PAYMENT_WINDOW_HOURS` 24. `status` dan `user_id` tidak mass-assignable. |
+| `Donation` | `donations` | belongsTo `User` (nullable), belongsTo `Campaign`, hasOne `Comment` | Route key `reference` (`INF-XXXXXXXXXX`, dibuat otomatis). Status: `pending`/`paid`/`expired`/`failed` (konstanta `STATUS_*`, termasuk `STATUS_EXPIRED`). `MIN_AMOUNT` 10.000, `MAX_AMOUNT` 1.000.000.000, `PAYMENT_WINDOW_HOURS` 24. `status`, `user_id`, `snap_token` tidak mass-assignable. `snap_token` = token Snap Midtrans; `payment_method` nullable, diisi dari `payment_type` notifikasi (`DonationStatusUpdater::paymentMethod()`). |
 | `Comment` (doa) | `comments` | belongsTo `Campaign`, `User`, `Donation` (unik: satu doa per donasi), belongsToMany `User` via `comment_amens` (`amenUsers`) | Hanya bisa dibuat setelah punya donasi `paid` ke kampanye itu. `amens_count` counter. Donasi anonim → nama "Hamba Allah". |
 | `Withdrawal` | `withdrawals` | belongsTo `Campaign` | Ledger publik. Jumlah tidak boleh melebihi `collected_amount` dikurangi penarikan sebelumnya. |
 | `News` | `news` | belongsTo `User` sebagai `author` (`author_id`) | Route key `slug`. Scope `published()`. |
@@ -76,6 +77,7 @@ Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshData
 
 - **Jangan pernah membaca atau menampilkan isi `.env`.** Jika butuh tahu variabel apa yang ada, lihat `.env.example` atau `config/*.php`.
 - Midtrans: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`. Variabel ini dipetakan di `config/services.php` ke `services.midtrans.*`, dan kode aplikasi membacanya lewat `config('services.midtrans.*')`. Jangan memanggil `env()` di luar folder `config/`, karena nilainya `null` setelah `config:cache`.
+- Webhook Midtrans butuh URL publik: saat lokal, jalankan ngrok dan daftarkan `https://<host>/payments/midtrans/notification` sebagai Payment Notification URL di dashboard Midtrans sandbox. Test tidak pernah memanggil Midtrans (`Http::preventStrayRequests()` di `tests/TestCase.php`; helper di `tests/Concerns/InteractsWithMidtrans.php`).
 - Mail lokal memakai SMTP Mailtrap (bukan driver `log`): email verifikasi dan kuitansi masuk ke inbox Mailtrap. Test tetap memakai mailer `array`.
 
 ## Aturan wajib
@@ -109,14 +111,7 @@ Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshData
 
 Jangan anggap ini contoh yang benar; sesuaikan bila mengerjakan area ini (dengan test):
 
-- **Aturan 2:** route donasi di `routes/web.php` hanya memakai `auth`, belum `verified`.
-- **Aturan 3:** belum ada integrasi Midtrans, route webhook, maupun `snap_token`.
-  - `DonationController::confirm()` (simulasi pembayaran, menandai `paid`) harus diganti handler webhook. Logikanya (lock, hitung donor baru, increment `collected_amount`, kirim `DonationReceipt`) dipindah ke kode bersama yang dipakai webhook dan `donations:expire`.
-  - `DonationController::cancel()` sudah benar sebagai jalur pembatalan donor (`pending` → `failed`). Yang kurang: belum memanggil API cancel Midtrans (dengan 404 ditoleransi) dan belum memakai `lockForUpdate`.
-  - Command `donations:expire` di `routes/console.php` boleh tetap ada, tapi sekarang langsung menandai `failed` tanpa mengecek Midtrans. Seharusnya cek status transaksi dulu, lalu menandai `expired` atau memproses `paid`.
-  - `DonationController::expireIfOverdue()` menandai `failed` saat halaman dibuka (`show()` dan `confirm()`). Ini jalur keempat yang tidak diizinkan: hapus. Hitung mundur sisa waktu di view boleh tetap ada sebagai informasi.
-  - Belum ada pemetaan status Midtrans (`capture`/`fraud_status`, `deny`/`cancel`/`failure`).
-- **Status:** `Donation` belum punya `STATUS_EXPIRED`. Kedaluwarsa masih disimpan sebagai `failed` (`routes/console.php`, `DonationController`, seeder, `DonationFlowTest`), dan label UI `failed` masih "Cancelled" (`history.blade.php`, `components/status-badge.blade.php`).
+- **Label status:** label UI `failed` masih "Cancelled" (`Donation::STATUS_LABELS`), padahal `failed` juga dipakai untuk `deny`/`failure` dari Midtrans.
 - **Status campaign:** `Campaign::STATUSES` masih `active`/`completed`/`closed`, belum ada `draft`. `completed` masih dipakai di filter `CampaignController::index`, `campaigns/index.blade.php`, dan `components/status-badge.blade.php`.
 - **Mail:** `README.md` masih menyebut driver `log` untuk mail lokal.
 
@@ -129,13 +124,11 @@ Sesuai ERD v3 & BPMN v3. Saat mengerjakannya, pindahkan butir dari sini ke bagia
 - **`users.is_active`:** user nonaktif tidak bisa login.
 - **`news.campaign_id`** (nullable): berita bisa terkait satu campaign (News belongsTo Campaign, Campaign hasMany News).
 - **Pivot `wishlists`** (`user_id`, `campaign_id`, unique gabungan). Wajib login.
-- **`donations.snap_token`:** token Snap Midtrans. `reference` dipakai sebagai `order_id`.
 - **Visibilitas campaign berdasarkan status:**
   - `draft` → 404 di semua halaman publik: daftar, detail, donasi (`create`/`store`), carousel, dan campaign terkait (related). Admin tetap bisa melihat dan mengedit draft lewat `/admin`.
   - `closed` → tetap tampil di halaman publik, tanpa tombol donasi. Route donasi menolaknya, seperti `isOpen()` sekarang.
 - **Command `campaigns:close`,** dijadwalkan harian pukul 00.00: campaign `active` yang lewat `deadline` → `closed`.
 - **Admin:** CRUD kategori & campaigner, daftar donatur, menonaktifkan akun, filter & ekspor CSV donasi. Semua di grup middleware `admin` (aturan 1).
-- **Route webhook:** `POST /payments/midtrans/notification` (lihat aturan 3).
 
 ## Konvensi lain
 

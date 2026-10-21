@@ -126,6 +126,45 @@ Alpine.data('loadMore', (nextUrl) => ({
     },
 }));
 
+// Opens Snap and, once it closes, polls the read-only status endpoint. The status is only ever
+// changed server-side by the Midtrans webhook, so the browser just waits and reloads.
+Alpine.data('snapPayment', (token, statusUrl, autoOpen = false) => ({
+    polling: false,
+    timedOut: false,
+    timer: null,
+    init() {
+        if (autoOpen) this.$nextTick(() => this.pay());
+    },
+    pay() {
+        if (!window.snap) return;
+        const done = () => this.watch();
+        window.snap.pay(token, { onSuccess: done, onPending: done, onError: done, onClose: done });
+    },
+    watch() {
+        clearInterval(this.timer);
+        this.polling = true;
+        this.timedOut = false;
+        const startedAt = Date.now();
+        this.timer = setInterval(async () => {
+            if (Date.now() - startedAt >= 120_000) {
+                clearInterval(this.timer);
+                this.polling = false;
+                this.timedOut = true;
+                return;
+            }
+            try {
+                const { data } = await window.axios.get(statusUrl);
+                if (data.status !== 'pending') window.location.reload();
+            } catch {
+                // Keep polling; the button below lets the donor refresh manually.
+            }
+        }, 5000);
+    },
+    destroy() {
+        clearInterval(this.timer);
+    },
+}));
+
 window.formatRupiah = formatRupiah;
 window.Alpine = Alpine;
 Alpine.start();

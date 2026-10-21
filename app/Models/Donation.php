@@ -21,14 +21,35 @@ class Donation extends Model
 
     public const STATUSES = [self::STATUS_PAID, self::STATUS_PENDING, self::STATUS_EXPIRED, self::STATUS_FAILED];
 
+    /**
+     * UI labels (translation keys) per status.
+     */
+    public const STATUS_LABELS = [
+        self::STATUS_PAID => 'Success',
+        self::STATUS_PENDING => 'Waiting payment',
+        self::STATUS_EXPIRED => 'Expired',
+        self::STATUS_FAILED => 'Cancelled',
+    ];
+
+    /**
+     * Keys are Midtrans payment types; bank transfers become "{bank}_va" (see DonationStatusUpdater::paymentMethod()).
+     */
     public const PAYMENT_METHODS = [
         'qris' => 'QRIS',
         'gopay' => 'GoPay',
+        'shopeepay' => 'ShopeePay',
         'ovo' => 'OVO',
         'dana' => 'DANA',
         'bca_va' => 'BCA Virtual Account',
         'mandiri_va' => 'Mandiri Virtual Account',
         'bni_va' => 'BNI Virtual Account',
+        'bri_va' => 'BRI Virtual Account',
+        'permata_va' => 'Permata Virtual Account',
+        'cimb_va' => 'CIMB Niaga Virtual Account',
+        'credit_card' => 'Credit/debit card',
+        'cstore' => 'Indomaret/Alfamart',
+        'akulaku' => 'Akulaku',
+        'kredivo' => 'Kredivo',
     ];
 
     public const MIN_AMOUNT = 10_000;
@@ -110,6 +131,10 @@ class Donation extends Model
 
     public function paymentMethodLabel(): string
     {
+        if (! $this->payment_method) {
+            return '—';
+        }
+
         return self::PAYMENT_METHODS[$this->payment_method] ?? $this->payment_method;
     }
 }
