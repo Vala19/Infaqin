@@ -41,7 +41,8 @@ class LoginController extends Controller
             ]);
         }
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Deactivated accounts get the same message as a wrong password, so the reason is not revealed.
+        if (! Auth::attemptWhen($credentials, fn ($user) => $user->is_active, $request->boolean('remember'))) {
             RateLimiter::hit($throttleKey, 60);
 
             throw ValidationException::withMessages([

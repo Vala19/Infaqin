@@ -574,5 +574,8 @@
     "Refresh status": "Perbarui status",
     "This donation has no payment session. Cancel it and make a new donation.": "Donasi ini tidak memiliki sesi pembayaran. Batalkan lalu buat donasi baru.",
     "Cancel donation": "Batalkan donasi",
-    "Payment expired": "Pembayaran kedaluwarsa"
+    "Payment expired": "Pembayaran kedaluwarsa",
+    "Program": "Program",
+    "Type": "Jenis",
+    "Your session has ended. Please log in again.": "Sesi Anda telah berakhir. Silakan masuk kembali."
 }

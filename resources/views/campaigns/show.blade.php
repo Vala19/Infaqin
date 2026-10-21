@@ -26,6 +26,7 @@
                 <div class="relative overflow-hidden rounded-3xl bg-mist shadow-card">
                     <img src="{{ $campaign->imageUrl() }}" alt="{{ $campaign->title }}" class="aspect-[361/310] w-full object-cover sm:aspect-[16/10]">
                     <div class="absolute top-4 left-4 flex gap-2">
+                        <span class="chip {{ $campaign->isProgram() ? 'bg-forest text-white' : 'bg-white/95 text-forest' }}" data-campaign-type="hero">{{ $campaign->typeLabel() }}</span>
                         <span class="chip bg-white/95 text-forest">{{ $campaign->categoryLabel() }}</span>
                         @if ($campaign->is_urgent) <span class="chip bg-red-600 text-white">{{ __('Urgent') }}</span> @endif
                     </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Campaign;
 use App\Models\Donation;
 use App\Services\DonationStatusUpdater;
 use App\Services\MidtransClient;
@@ -39,6 +40,14 @@ Artisan::command('donations:expire', function (MidtransClient $midtrans, Donatio
 })->purpose('Check overdue pending donations with Midtrans and apply their final status');
 
 Schedule::command('donations:expire')->hourly()->withoutOverlapping();
+
+Artisan::command('campaigns:close', function () {
+    $closed = Campaign::pastDeadline()->update(['status' => Campaign::STATUS_CLOSED]);
+
+    $this->info("Closed {$closed} campaign(s) past their deadline.");
+})->purpose('Close active campaigns whose deadline has passed');
+
+Schedule::command('campaigns:close')->daily()->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

@@ -1,6 +1,6 @@
 @php
     $selectedCategories = $filters['category'] ?? [];
-    $activeFilterCount = count($selectedCategories) + (($filters['status'] ?? 'active') !== 'active' ? 1 : 0) + (request()->boolean('urgent') ? 1 : 0);
+    $activeFilterCount = count($selectedCategories) + (($filters['status'] ?? 'active') !== 'active' ? 1 : 0) + (empty($filters['type']) ? 0 : 1) + (request()->boolean('urgent') ? 1 : 0);
 @endphp
 
 <x-layouts.app :title="__('Campaigns')">
@@ -16,6 +16,7 @@
                 @endforeach
                 <input type="hidden" name="sort" value="{{ $filters['sort'] }}">
                 <input type="hidden" name="status" value="{{ $filters['status'] }}">
+                @if (! empty($filters['type'])) <input type="hidden" name="type" value="{{ $filters['type'] }}"> @endif
                 @if (request()->boolean('urgent')) <input type="hidden" name="urgent" value="1"> @endif
                 <label for="campaign-search" class="sr-only">{{ __('Search campaigns') }}</label>
                 <div class="relative flex-1">
@@ -67,6 +68,18 @@
                             @foreach (['active' => __('Active'), 'closed' => __('Closed'), 'all' => __('All')] as $value => $label)
                                 <label class="cursor-pointer">
                                     <input type="radio" name="status" value="{{ $value }}" class="peer sr-only" @checked($filters['status'] === $value) @change="$el.form.requestSubmit()">
+                                    <span class="block rounded-md py-1.5 text-center text-ink/70 transition peer-checked:bg-white peer-checked:text-brand peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend class="mb-3 text-xs font-semibold tracking-wide text-ink/60 uppercase">{{ __('Type') }}</legend>
+                        <div class="grid grid-cols-3 gap-1 rounded-lg bg-paper p-1 text-xs font-medium">
+                            @foreach (['' => __('All'), 'program' => __('Program'), 'campaign' => __('Campaign')] as $value => $label)
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="type" value="{{ $value }}" class="peer sr-only" @checked(($filters['type'] ?? '') === $value) @change="$el.form.requestSubmit()">
                                     <span class="block rounded-md py-1.5 text-center text-ink/70 transition peer-checked:bg-white peer-checked:text-brand peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-brand">{{ $label }}</span>
                                 </label>
                             @endforeach

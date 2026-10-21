@@ -11,6 +11,7 @@
         <img src="{{ $campaign->imageUrl() }}" alt="{{ $campaign->title }}" loading="lazy"
              class="size-full object-cover transition duration-500 group-hover:scale-105">
         <div class="absolute top-3 left-3 flex flex-wrap gap-1.5">
+            <span class="chip {{ $campaign->isProgram() ? 'bg-forest text-white' : 'bg-white/95 text-forest' }} shadow-sm" data-campaign-type="card">{{ $campaign->typeLabel() }}</span>
             <span class="chip bg-white/95 text-forest shadow-sm">{{ $campaign->categoryLabel() }}</span>
             @if ($campaign->is_urgent)
                 <span class="chip bg-red-600 text-white shadow-sm">{{ __('Urgent') }}</span>

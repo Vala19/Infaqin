@@ -27,6 +27,7 @@ class CampaignController extends Controller
             'category' => ['nullable', 'array'],
             'category.*' => ['string', Rule::exists('categories', 'slug')],
             'status' => ['nullable', Rule::in([Campaign::STATUS_ACTIVE, Campaign::STATUS_CLOSED, 'all'])],
+            'type' => ['nullable', Rule::in(Campaign::TYPES)],
             'urgent' => ['nullable', 'boolean'],
             'sort' => ['nullable', Rule::in(array_keys(self::SORTS))],
         ]);
@@ -46,6 +47,7 @@ class CampaignController extends Controller
                     ->orWhereHas('campaigner', fn ($c) => $c->where('name', 'like', $like)));
             })
             ->when($filters['category'] ?? null, fn ($query, $categories) => $query->whereHas('category', fn ($c) => $c->whereIn('slug', $categories)))
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->ofType($type))
             ->when($request->boolean('urgent'), fn ($query) => $query->where('is_urgent', true))
             ->when($sort, fn ($query) => match ($sort) {
                 'newest' => $query->latest(),

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
@@ -14,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [SetLocale::class, SecurityHeaders::class]);
+        $middleware->web(append: [SetLocale::class, SecurityHeaders::class, EnsureUserIsActive::class]);
 
         // Midtrans cannot send a CSRF token; the handler verifies signature_key instead.
         $middleware->validateCsrfTokens(except: ['payments/midtrans/notification']);

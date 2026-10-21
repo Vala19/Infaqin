@@ -23,6 +23,15 @@ class Campaign extends Model
      */
     public const PUBLIC_STATUSES = [self::STATUS_ACTIVE, self::STATUS_CLOSED];
 
+    /**
+     * Public type filter: programmes run by Syaamil (internal campaigner) or partner campaigns.
+     */
+    public const TYPE_PROGRAM = 'program';
+
+    public const TYPE_CAMPAIGN = 'campaign';
+
+    public const TYPES = [self::TYPE_PROGRAM, self::TYPE_CAMPAIGN];
+
     protected $fillable = [
         'campaigner_id', 'category_id', 'title', 'slug', 'image', 'summary', 'description',
         'location', 'target_amount', 'deadline', 'is_urgent', 'is_featured', 'status',
@@ -90,6 +99,19 @@ class Campaign extends Model
         return $query->whereIn('status', self::PUBLIC_STATUSES);
     }
 
+    /**
+     * Active campaigns whose deadline day has fully passed (closed by campaigns:close).
+     */
+    public function scopePastDeadline(Builder $query): Builder
+    {
+        return $query->active()->whereDate('deadline', '<', today());
+    }
+
+    public function scopeOfType(Builder $query, string $type): Builder
+    {
+        return $query->whereHas('campaigner', fn ($c) => $c->where('is_internal', $type === self::TYPE_PROGRAM));
+    }
+
     public function isDraft(): bool
     {
         return $this->status === self::STATUS_DRAFT;
@@ -116,6 +138,16 @@ class Campaign extends Model
     public function categoryLabel(): string
     {
         return $this->category ? __($this->category->name) : '';
+    }
+
+    public function isProgram(): bool
+    {
+        return (bool) $this->campaigner->is_internal;
+    }
+
+    public function typeLabel(): string
+    {
+        return $this->isProgram() ? __('Program') : __('Campaign');
     }
 
     public function imageUrl(): string

@@ -12,6 +12,9 @@ class CategoryMigrationTest extends TestCase
 {
     use DatabaseMigrations;
 
+    /** Starts from an empty database; the shared seed would skew the migration checks. */
+    protected bool $seed = false;
+
     /**
      * Migrations added on 2026-10-20 after create_categories_table.
      */

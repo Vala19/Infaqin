@@ -18,7 +18,7 @@ app/
   Http/Controllers/          Controller publik & donor (Campaign, Donation, Comment, History, Profile, News, ...)
   Http/Controllers/Admin/    Dashboard, Campaign, News, Donation (daftar), Withdrawal
   Http/Controllers/Auth/     Login, Register, EmailVerification
-  Http/Middleware/           EnsureUserIsAdmin (alias 'admin'), SetLocale, SecurityHeaders
+  Http/Middleware/           EnsureUserIsAdmin (alias 'admin'), EnsureUserIsActive (grup web), SetLocale, SecurityHeaders
   Models/                    User, Campaigner, Campaign, Donation, Comment, News, Withdrawal
   Notifications/             DonationReceipt (email kuitansi)
   Providers/AppServiceProvider.php   preventLazyLoading, aturan Password default, view paginasi
@@ -34,7 +34,7 @@ resources/views/             Halaman Blade; admin/, campaigns/, donations/, news
 resources/js/app.js          Komponen Alpine (carousel, kalkulator zakat, format rupiah, dll.)
 resources/css/app.css        Tailwind 4 + token brand
 routes/web.php               Semua route web
-routes/console.php           Command `donations:expire` (dijadwalkan per jam)
+routes/console.php           Command `donations:expire` (per jam) dan `campaigns:close` (harian 00.00)
 tests/Feature/, tests/Unit/  Test PHPUnit
 tests/e2e/                   Test E2E Playwright (support.js = akun demo & helper, auth.setup.js = sesi login)
 scripts/e2e-reset.mjs        Buat ulang & seed database/e2e.sqlite (menolak path DB lain)
@@ -45,9 +45,9 @@ playwright.config.js         webServer: e2e:reset lalu `php artisan serve --env=
 
 | Model | Tabel | Relasi | Catatan |
 |---|---|---|---|
-| `User` | `users` | hasMany `Donation`, hasMany `Comment`, belongsToMany `Comment` via `comment_amens` (`amenedComments`) | Implement `MustVerifyEmail`. `is_admin` sengaja **tidak** mass-assignable. `kindnessStreak()` = minggu berturut-turut dengan donasi `paid`. |
-| `Campaigner` | `campaigners` | hasMany `Campaign` | `is_verified` = tanda perisai hijau. |
-| `Campaign` | `campaigns` | belongsTo `Campaigner`, hasMany `Donation`, hasMany `Withdrawal`, hasMany `Comment` | Route key `slug`. Status: `draft`/`active`/`closed`. `target_amount`, `collected_amount`, `donor_count` integer. `isOpen()` = aktif & belum lewat deadline. |
+| `User` | `users` | hasMany `Donation`, hasMany `Comment`, belongsToMany `Comment` via `comment_amens` (`amenedComments`) | Implement `MustVerifyEmail`. `is_admin` dan `is_active` sengaja **tidak** mass-assignable. `is_active=false`: login ditolak dengan pesan umum `auth.failed` (sama seperti password salah), dan sesi yang sudah ada diakhiri `EnsureUserIsActive` pada request berikutnya. `kindnessStreak()` = minggu berturut-turut dengan donasi `paid`. |
+| `Campaigner` | `campaigners` | hasMany `Campaign` | `is_verified` = tanda perisai hijau. `is_internal`: `true` = Syaamil, label "Program"; `false` = mitra, label "Campaign" (`Campaign::typeLabel()`, filter `?type=program|campaign`). |
+| `Campaign` | `campaigns` | belongsTo `Campaigner`, hasMany `Donation`, hasMany `Withdrawal`, hasMany `Comment` | Route key `slug`. Status: `draft`/`active`/`closed`. `target_amount`, `collected_amount`, `donor_count` integer. `isOpen()` = aktif & belum lewat deadline. Command `campaigns:close` (harian 00.00) mengubah `active` yang hari deadline-nya sudah lewat menjadi `closed` (scope `pastDeadline()`). |
 | `Donation` | `donations` | belongsTo `User` (nullable), belongsTo `Campaign`, hasOne `Comment` | Route key `reference` (`INF-XXXXXXXXXX`, dibuat otomatis). Status: `pending`/`paid`/`expired`/`failed` (konstanta `STATUS_*`, termasuk `STATUS_EXPIRED`). Label UI `failed` = "Failed"/"Gagal" (mencakup pembatalan donor dan `deny`/`cancel`/`failure` Midtrans); judul halaman detail donasi: "Donation cancelled / payment failed". `MIN_AMOUNT` 10.000, `MAX_AMOUNT` 1.000.000.000, `PAYMENT_WINDOW_HOURS` 24. `status`, `user_id`, `snap_token` tidak mass-assignable. `snap_token` = token Snap Midtrans; `payment_method` nullable, diisi dari `payment_type` notifikasi (`DonationStatusUpdater::paymentMethod()`). |
 | `Comment` (doa) | `comments` | belongsTo `Campaign`, `User`, `Donation` (unik: satu doa per donasi), belongsToMany `User` via `comment_amens` (`amenUsers`) | Hanya bisa dibuat setelah punya donasi `paid` ke kampanye itu. `amens_count` counter. Donasi anonim → nama "Hamba Allah". |
 | `Withdrawal` | `withdrawals` | belongsTo `Campaign` | Ledger publik. Jumlah tidak boleh melebihi `collected_amount` dikurangi penarikan sebelumnya. |
@@ -90,7 +90,7 @@ npm run e2e:reset                         # hanya reset e2e.sqlite
 - Hentikan `npm run dev` dulu: selama `public/hot` ada, halaman memuat aset dari Vite dev server.
 - `php artisan test` tetap wajib lulus (aturan 5). E2E adalah lapisan tambahan, bukan pengganti test PHPUnit.
 
-Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshDatabase`. Hanya ada `UserFactory`; model lain dibuat langsung di test (lihat `setUp()` di `tests/Feature/DonationFlowTest.php`).
+Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshDatabase`. Database `:memory:` dimigrasi sekali per proses dan selalu di-seed (`$seed = true` di `tests/TestCase.php`), jadi test harus tahan terhadap data seed (mis. filter dengan `q` alih-alih menghitung semua kartu). Hanya ada `UserFactory`; model lain dibuat langsung di test (lihat `setUp()` di `tests/Feature/DonationFlowTest.php`).
 
 ## Environment
 
@@ -131,14 +131,11 @@ Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshData
 Sesuai ERD v3 & BPMN v3. Saat mengerjakannya, pindahkan butir dari sini ke bagian Model/Aturan, dan sertakan test.
 
 - **Kategori:** tabel `categories` (`name`, `slug`) menggantikan string `campaigns.category` dan konstanta `Campaign::CATEGORIES`. Relasinya lewat `campaigns.category_id` (Campaign belongsTo Category, Category hasMany Campaign).
-- **`campaigners.is_internal`:** `true` = Syaamil, ditampilkan sebagai "Program". `false` = mitra, ditampilkan sebagai "Campaign".
-- **`users.is_active`:** user nonaktif tidak bisa login.
 - **`news.campaign_id`** (nullable): berita bisa terkait satu campaign (News belongsTo Campaign, Campaign hasMany News).
 - **Pivot `wishlists`** (`user_id`, `campaign_id`, unique gabungan). Wajib login.
 - **Visibilitas campaign berdasarkan status:**
   - `draft` → 404 di semua halaman publik: daftar, detail, donasi (`create`/`store`), carousel, dan campaign terkait (related). Admin tetap bisa melihat dan mengedit draft lewat `/admin`.
   - `closed` → tetap tampil di halaman publik, tanpa tombol donasi. Route donasi menolaknya, seperti `isOpen()` sekarang.
-- **Command `campaigns:close`,** dijadwalkan harian pukul 00.00: campaign `active` yang lewat `deadline` → `closed`.
 - **Admin:** CRUD kategori & campaigner, daftar donatur, menonaktifkan akun, filter & ekspor CSV donasi. Semua di grup middleware `admin` (aturan 1).
 
 ## Konvensi lain

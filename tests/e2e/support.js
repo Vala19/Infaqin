@@ -3,6 +3,7 @@ export const ADMIN = { email: 'admin@infaqin.test', password: 'Admin#12345', sta
 export const DONOR = { email: 'user@infaqin.test', password: 'Donor#12345', state: 'tests/e2e/.auth/donor.json' };
 
 export const ACTIVE_CAMPAIGN = { title: 'GEMAS — Gerakan Membersihkan Masjid', slug: 'gemas-gerakan-membersihkan-masjid' };
+export const PROGRAM_CAMPAIGN = { title: "SSQ — Sebar Sejuta Qur'an", slug: 'ssq-sebar-sejuta-quran' }; // by Syaamil (is_internal)
 export const DRAFT_CAMPAIGN = { title: 'Ramadan Iftar for Pesantren Students', slug: 'ramadan-iftar-for-pesantren-students' };
 
 export async function login(page, { email, password }) {

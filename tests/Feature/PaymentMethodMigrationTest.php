@@ -12,6 +12,9 @@ class PaymentMethodMigrationTest extends TestCase
 {
     use DatabaseMigrations;
 
+    /** Starts from an empty database; the shared seed would skew the migration checks. */
+    protected bool $seed = false;
+
     private array $sharedConnections = [];
 
     private bool $sharedMigrated = false;

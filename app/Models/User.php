@@ -30,6 +30,13 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+    ];
+
+    /**
      * @var list<string>
      */
     protected $hidden = [
