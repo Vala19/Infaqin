@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Models\Donation;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class LandingController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
         $slides = Campaign::active()
             ->with(['campaigner', 'category'])
@@ -30,6 +31,8 @@ class LandingController extends Controller
             'campaigns' => Campaign::visible()->count(),
         ];
 
-        return view('landing', compact('slides', 'topCampaigns', 'stats'));
+        $wishlistIds = $request->user()?->wishlistIds() ?? [];
+
+        return view('landing', compact('slides', 'topCampaigns', 'stats', 'wishlistIds'));
     }
 }

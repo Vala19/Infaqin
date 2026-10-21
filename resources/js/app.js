@@ -74,6 +74,25 @@ Alpine.data('amenButton', (url, amened, count) => ({
     },
 }));
 
+// Sends the wanted state (not a flip), so double clicks or retries cannot desync the heart.
+Alpine.data('wishlistButton', (url, saved) => ({
+    saved,
+    busy: false,
+    async toggle() {
+        if (this.busy) return;
+        this.busy = true;
+        try {
+            const { data } = await window.axios.post(url, { saved: !this.saved });
+            this.saved = data.saved;
+            this.$dispatch('wishlist-changed', { saved: this.saved });
+        } catch (error) {
+            if (error.response?.status === 401) window.location.href = '/login';
+        } finally {
+            this.busy = false;
+        }
+    },
+}));
+
 Alpine.data('shareButton', (url, title) => ({
     copied: false,
     open: false,

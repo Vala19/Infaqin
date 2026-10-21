@@ -131,7 +131,7 @@
                 @else
                     <div class="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                         @foreach ($campaigns as $campaign)
-                            <x-campaign-card :campaign="$campaign" />
+                            <x-campaign-card :campaign="$campaign" :saved="in_array($campaign->id, $wishlistIds)" />
                         @endforeach
                     </div>
                     <div class="mt-10">{{ $campaigns->links() }}</div>

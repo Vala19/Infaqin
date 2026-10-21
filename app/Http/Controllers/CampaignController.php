@@ -65,6 +65,7 @@ class CampaignController extends Controller
             'categories' => Category::orderBy('name')->get(),
             'filters' => $filters + ['sort' => $sort, 'status' => $status],
             'sorts' => self::SORTS,
+            'wishlistIds' => $request->user()?->wishlistIds() ?? [],
         ]);
     }
 
@@ -94,6 +95,7 @@ class CampaignController extends Controller
         $user = $request->user();
         $eligibleDonation = null;
         $amenedIds = [];
+        $wishlistIds = $user?->wishlistIds() ?? [];
 
         if ($user) {
             $eligibleDonation = $user->donations()
@@ -117,7 +119,7 @@ class CampaignController extends Controller
             ->get();
 
         return view('campaigns.show', compact(
-            'campaign', 'recentDonations', 'comments', 'commentCount', 'eligibleDonation', 'amenedIds', 'related'
+            'campaign', 'recentDonations', 'comments', 'commentCount', 'eligibleDonation', 'amenedIds', 'related', 'wishlistIds'
         ));
     }
 }

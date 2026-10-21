@@ -47,6 +47,8 @@ class HomeController extends Controller
 
         $news = News::published()->latest('published_at')->take(3)->get();
 
-        return view('home', compact('stats', 'topCampaigns', 'urgentCampaign', 'prayers', 'amenedIds', 'news'));
+        $wishlistIds = $user->wishlistIds();
+
+        return view('home', compact('stats', 'topCampaigns', 'urgentCampaign', 'prayers', 'amenedIds', 'news', 'wishlistIds'));
     }
 }

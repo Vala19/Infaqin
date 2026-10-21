@@ -50,14 +50,21 @@
 
     {{-- ================= SHORTCUTS ================= --}}
     <section class="relative z-10 container-page -mt-6" aria-label="{{ __('Shortcuts') }}">
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ([
                 ['profile.edit', 'profile', __('Profile'), __('Name, birthday & email verification')],
                 ['campaigns.index', 'donation', __('Campaigns'), __('Search, filter & donate in seconds')],
                 ['history', 'history', __('History'), __('Every donation, receipt & status')],
+                ['wishlist', 'heart', __('Wishlist'), __('Campaigns you saved for later')],
             ] as [$route, $icon, $label, $desc])
                 <a href="{{ route($route) }}" class="group card flex items-center gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-xl hover:ring-2 hover:ring-brand">
-                    <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-mint-50 transition group-hover:bg-mint/40"><x-figma-icon :name="$icon" class="size-8" /></span>
+                    <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-mint-50 transition group-hover:bg-mint/40">
+                        @if ($icon === 'heart')
+                            <x-icon name="heart" class="size-8 fill-current text-red-500" />
+                        @else
+                            <x-figma-icon :name="$icon" class="size-8" />
+                        @endif
+                    </span>
                     <span class="min-w-0 flex-1">
                         <span class="block font-semibold text-night">{{ $label }}</span>
                         <span class="block truncate text-xs text-ink/65">{{ $desc }}</span>
@@ -80,7 +87,7 @@
 
             <div class="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($topCampaigns as $campaign)
-                    <x-campaign-card :campaign="$campaign" />
+                    <x-campaign-card :campaign="$campaign" :saved="in_array($campaign->id, $wishlistIds)" />
                 @endforeach
             </div>
 

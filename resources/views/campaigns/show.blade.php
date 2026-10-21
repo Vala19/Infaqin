@@ -30,6 +30,7 @@
                         <span class="chip bg-white/95 text-forest">{{ $campaign->categoryLabel() }}</span>
                         @if ($campaign->is_urgent) <span class="chip bg-red-600 text-white">{{ __('Urgent') }}</span> @endif
                     </div>
+                    <x-wishlist-button :campaign="$campaign" :saved="in_array($campaign->id, $wishlistIds)" class="absolute top-4 right-4" />
                 </div>
 
                 <h1 class="mt-8 text-3xl leading-tight font-bold tracking-tight text-night sm:text-4xl">{{ $campaign->title }}</h1>
@@ -174,7 +175,7 @@
                 <h2 class="text-2xl font-bold text-night">{{ __('More :category campaigns', ['category' => Str::lower($campaign->categoryLabel())]) }}</h2>
                 <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($related as $item)
-                        <x-campaign-card :campaign="$item" />
+                        <x-campaign-card :campaign="$item" :saved="in_array($item->id, $wishlistIds)" />
                     @endforeach
                 </div>
             </section>

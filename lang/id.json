@@ -577,5 +577,13 @@
     "Payment expired": "Pembayaran kedaluwarsa",
     "Program": "Program",
     "Type": "Jenis",
-    "Your session has ended. Please log in again.": "Sesi Anda telah berakhir. Silakan masuk kembali."
+    "Your session has ended. Please log in again.": "Sesi Anda telah berakhir. Silakan masuk kembali.",
+    "Wishlist": "Wishlist",
+    "Save to wishlist": "Simpan ke wishlist",
+    "Saved to your wishlist.": "Tersimpan di wishlist Anda.",
+    "Removed from your wishlist.": "Dihapus dari wishlist Anda.",
+    "Campaigns you saved to come back to and support later.": "Kampanye yang Anda simpan untuk didukung nanti.",
+    "Campaigns you saved for later": "Kampanye yang Anda simpan untuk nanti",
+    "Your wishlist is empty": "Wishlist Anda masih kosong",
+    "Tap the heart on any campaign to save it here.": "Ketuk ikon hati di kampanye mana pun untuk menyimpannya di sini."
 }

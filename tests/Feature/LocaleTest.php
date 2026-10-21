@@ -62,7 +62,7 @@ class LocaleTest extends TestCase
         $donation = Donation::where('status', Donation::STATUS_PAID)->first();
         $donation?->forceFill(['user_id' => $user->id])->save();
 
-        foreach (['/home', '/history', '/profile', '/campaigns/'.$campaign->slug.'/donate'] as $url) {
+        foreach (['/home', '/history', '/wishlist', '/profile', '/campaigns/'.$campaign->slug.'/donate'] as $url) {
             $this->actingAs($user)->withCookie('locale', 'id')->get($url)->assertOk();
         }
         if ($donation) {

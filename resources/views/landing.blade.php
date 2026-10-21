@@ -140,7 +140,7 @@
             </div>
             <div class="mt-12 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($topCampaigns as $campaign)
-                    <x-campaign-card :campaign="$campaign" />
+                    <x-campaign-card :campaign="$campaign" :saved="in_array($campaign->id, $wishlistIds)" />
                 @endforeach
             </div>
         </div>

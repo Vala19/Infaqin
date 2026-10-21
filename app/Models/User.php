@@ -78,6 +78,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(Campaign::class, 'wishlists')->withTimestamps();
     }
 
+    /**
+     * IDs of the campaigns this user saved, used to fill the heart on campaign cards.
+     *
+     * @return list<int>
+     */
+    public function wishlistIds(): array
+    {
+        return $this->wishlist()->pluck('campaigns.id')->all();
+    }
+
     public function initials(): string
     {
         return collect(explode(' ', $this->name))

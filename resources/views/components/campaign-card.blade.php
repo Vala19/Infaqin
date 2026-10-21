@@ -1,4 +1,4 @@
-@props(['campaign', 'popover' => true])
+@props(['campaign', 'popover' => true, 'saved' => false])
 
 {{-- Campaign card with a hover/focus popover that previews the basic details. --}}
 <article x-data="{ peek: false, timer: null }"
@@ -10,7 +10,7 @@
     <a href="{{ route('campaigns.show', $campaign) }}" class="relative block aspect-[361/310] overflow-hidden rounded-t-2xl bg-mist">
         <img src="{{ $campaign->imageUrl() }}" alt="{{ $campaign->title }}" loading="lazy"
              class="size-full object-cover transition duration-500 group-hover:scale-105">
-        <div class="absolute top-3 left-3 flex flex-wrap gap-1.5">
+        <div class="absolute top-3 right-15 left-3 flex flex-wrap gap-1.5">
             <span class="chip {{ $campaign->isProgram() ? 'bg-forest text-white' : 'bg-white/95 text-forest' }} shadow-sm" data-campaign-type="card">{{ $campaign->typeLabel() }}</span>
             <span class="chip bg-white/95 text-forest shadow-sm">{{ $campaign->categoryLabel() }}</span>
             @if ($campaign->is_urgent)
@@ -18,6 +18,7 @@
             @endif
         </div>
     </a>
+    <x-wishlist-button :campaign="$campaign" :saved="$saved" class="absolute top-3 right-3 z-10" />
 
     <div class="flex flex-1 flex-col p-5">
         <p class="flex items-center gap-1.5 text-xs text-ink/70">
@@ -38,6 +39,8 @@
                 <span class="flex items-center gap-1"><x-icon name="clock" class="size-4" /> {{ __(':count days left', ['count' => $campaign->daysLeft()]) }}</span>
             @endif
         </div>
+
+        {{ $slot }}
     </div>
 
     @if ($popover)

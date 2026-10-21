@@ -14,6 +14,7 @@
             ['home', __('Home'), 'home'],
             ['campaigns.index', __('Campaigns'), 'campaigns.*'],
             ['history', __('History'), 'history'],
+            ['wishlist', __('Wishlist'), 'wishlist'],
             ['news.index', __('News'), 'news.*'],
         ]
         : [

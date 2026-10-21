@@ -53,7 +53,7 @@ playwright.config.js         webServer: e2e:reset lalu `php artisan serve --env=
 | `Withdrawal` | `withdrawals` | belongsTo `Campaign` | Ledger publik. Jumlah tidak boleh melebihi `collected_amount` dikurangi penarikan sebelumnya. |
 | `News` | `news` | belongsTo `User` sebagai `author` (`author_id`) | Route key `slug`. Scope `published()`. |
 
-Pivot `comment_amens` (PK gabungan `comment_id` + `user_id`, hanya `created_at`). Tabel `withdrawals` ada di migration kampanye; `comments` dan `comment_amens` ada di migration donasi.
+Pivot `comment_amens` (PK gabungan `comment_id` + `user_id`, hanya `created_at`). Pivot `wishlists` (`user_id`, `campaign_id`, unique gabungan, timestamps): `User::wishlist()` / `Campaign::wishlistedBy()`; `User::wishlistIds()` dipakai controller untuk mengisi ikon hati di `<x-campaign-card :saved>`. Tabel `withdrawals` ada di migration kampanye; `comments` dan `comment_amens` ada di migration donasi.
 
 ## Menjalankan aplikasi & test
 
@@ -133,7 +133,6 @@ Sesuai ERD v3 & BPMN v3. Saat mengerjakannya, pindahkan butir dari sini ke bagia
 
 - **Kategori:** tabel `categories` (`name`, `slug`) menggantikan string `campaigns.category` dan konstanta `Campaign::CATEGORIES`. Relasinya lewat `campaigns.category_id` (Campaign belongsTo Category, Category hasMany Campaign).
 - **`news.campaign_id`** (nullable): berita bisa terkait satu campaign (News belongsTo Campaign, Campaign hasMany News).
-- **Pivot `wishlists`** (`user_id`, `campaign_id`, unique gabungan). Wajib login.
 - **Visibilitas campaign berdasarkan status:**
   - `draft` → 404 di semua halaman publik: daftar, detail, donasi (`create`/`store`), carousel, dan campaign terkait (related). Admin tetap bisa melihat dan mengedit draft lewat `/admin`.
   - `closed` → tetap tampil di halaman publik, tanpa tombol donasi. Route donasi menolaknya, seperti `isOpen()` sekarang.
@@ -145,4 +144,5 @@ Sesuai ERD v3 & BPMN v3. Saat mengerjakannya, pindahkan butir dari sini ke bagia
 - Kepemilikan donasi dicek di controller dan mengembalikan 404 (bukan 403) agar tidak membocorkan keberadaan data.
 - `Model::preventLazyLoading()` aktif di luar production: selalu eager load (`with`/`load`).
 - Route publik yang menulis data diberi `throttle`.
+- **Wishlist** (`WishlistController`, komponen `<x-wishlist-button>`): wajib login tapi **tidak** wajib email terverifikasi. `POST /campaigns/{campaign}/wishlist` (`throttle:30,1`) menerima `saved` (boolean) dan menetapkan state, bukan membalik, jadi idempoten; JSON untuk Alpine, redirect `back()` tanpa JS. Tamu diarahkan lewat `GET /campaigns/{campaign}/wishlist` (`auth`) sehingga setelah login kembali ke campaign. Draft → 404 dan tidak pernah tampil di `/wishlist`; campaign closed tetap tampil dengan label "Closed" tanpa tombol donasi.
 - Teks UI baru harus lewat `__()` dan ditambahkan ke `lang/id.json`; `LocaleTest` merender setiap halaman dalam bahasa Indonesia.
