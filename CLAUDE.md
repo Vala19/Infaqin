@@ -45,7 +45,7 @@ tests/Feature/, tests/Unit/  Test PHPUnit
 | `User` | `users` | hasMany `Donation`, hasMany `Comment`, belongsToMany `Comment` via `comment_amens` (`amenedComments`) | Implement `MustVerifyEmail`. `is_admin` sengaja **tidak** mass-assignable. `kindnessStreak()` = minggu berturut-turut dengan donasi `paid`. |
 | `Campaigner` | `campaigners` | hasMany `Campaign` | `is_verified` = tanda perisai hijau. |
 | `Campaign` | `campaigns` | belongsTo `Campaigner`, hasMany `Donation`, hasMany `Withdrawal`, hasMany `Comment` | Route key `slug`. Status: `draft`/`active`/`closed`. `target_amount`, `collected_amount`, `donor_count` integer. `isOpen()` = aktif & belum lewat deadline. |
-| `Donation` | `donations` | belongsTo `User` (nullable), belongsTo `Campaign`, hasOne `Comment` | Route key `reference` (`INF-XXXXXXXXXX`, dibuat otomatis). Status: `pending`/`paid`/`expired`/`failed` (konstanta `STATUS_*`, termasuk `STATUS_EXPIRED`). `MIN_AMOUNT` 10.000, `MAX_AMOUNT` 1.000.000.000, `PAYMENT_WINDOW_HOURS` 24. `status`, `user_id`, `snap_token` tidak mass-assignable. `snap_token` = token Snap Midtrans; `payment_method` nullable, diisi dari `payment_type` notifikasi (`DonationStatusUpdater::paymentMethod()`). |
+| `Donation` | `donations` | belongsTo `User` (nullable), belongsTo `Campaign`, hasOne `Comment` | Route key `reference` (`INF-XXXXXXXXXX`, dibuat otomatis). Status: `pending`/`paid`/`expired`/`failed` (konstanta `STATUS_*`, termasuk `STATUS_EXPIRED`). Label UI `failed` = "Failed"/"Gagal" (mencakup pembatalan donor dan `deny`/`cancel`/`failure` Midtrans); judul halaman detail donasi: "Donation cancelled / payment failed". `MIN_AMOUNT` 10.000, `MAX_AMOUNT` 1.000.000.000, `PAYMENT_WINDOW_HOURS` 24. `status`, `user_id`, `snap_token` tidak mass-assignable. `snap_token` = token Snap Midtrans; `payment_method` nullable, diisi dari `payment_type` notifikasi (`DonationStatusUpdater::paymentMethod()`). |
 | `Comment` (doa) | `comments` | belongsTo `Campaign`, `User`, `Donation` (unik: satu doa per donasi), belongsToMany `User` via `comment_amens` (`amenUsers`) | Hanya bisa dibuat setelah punya donasi `paid` ke kampanye itu. `amens_count` counter. Donasi anonim → nama "Hamba Allah". |
 | `Withdrawal` | `withdrawals` | belongsTo `Campaign` | Ledger publik. Jumlah tidak boleh melebihi `collected_amount` dikurangi penarikan sebelumnya. |
 | `News` | `news` | belongsTo `User` sebagai `author` (`author_id`) | Route key `slug`. Scope `published()`. |
@@ -106,14 +106,6 @@ Test ditulis sebagai class PHPUnit dengan method `test_*` dan trait `RefreshData
    - `reference` donasi dipakai sebagai `order_id` Midtrans.
 4. **Nominal memakai integer rupiah.** Semua uang (`amount`, `target_amount`, `collected_amount`, penarikan) disimpan dan dihitung sebagai integer rupiah utuh: tanpa float, tanpa desimal, tanpa sen, tanpa kolom `decimal`. Kolom memakai `unsignedBigInteger`, cast model `'integer'`, validasi `'integer'`. Format tampilan hanya lewat `rupiah()` / `rupiah_short()` (PHP) atau `formatRupiah` (JS); `gross_amount` ke Midtrans dikirim sebagai integer.
 5. **Setiap perubahan harus disertai test.** Setiap perubahan perilaku (fitur, perbaikan bug, route, validasi, migration) harus menambah atau memperbarui test di `tests/Feature` atau `tests/Unit`, dan `php artisan test` harus lulus sebelum pekerjaan dianggap selesai.
-
-### Kode yang belum sesuai aturan (per 2026-10-20)
-
-Jangan anggap ini contoh yang benar; sesuaikan bila mengerjakan area ini (dengan test):
-
-- **Label status:** label UI `failed` masih "Cancelled" (`Donation::STATUS_LABELS`), padahal `failed` juga dipakai untuk `deny`/`failure` dari Midtrans.
-- **Status campaign:** `Campaign::STATUSES` masih `active`/`completed`/`closed`, belum ada `draft`. `completed` masih dipakai di filter `CampaignController::index`, `campaigns/index.blade.php`, dan `components/status-badge.blade.php`.
-- **Mail:** `README.md` masih menyebut driver `log` untuk mail lokal.
 
 ## Rancangan target (belum diimplementasi)
 

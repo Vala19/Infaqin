@@ -406,7 +406,21 @@ class MidtransPaymentTest extends TestCase
         Http::assertNothingSent();
     }
 
-    // --- donations:expire (BPMN 12) -----------------------------------------------------------
+    public function test_failed_label_covers_cancellations_and_rejected_payments(): void
+    {
+        $this->assertSame('Failed', Donation::STATUS_LABELS[Donation::STATUS_FAILED]);
+
+        $donation = $this->donation(['status' => Donation::STATUS_FAILED]);
+
+        $this->actingAs($this->user)->get('/history')->assertOk()->assertSee('Failed')->assertDontSee('Cancelled');
+        $this->get("/donations/{$donation->reference}")->assertOk()->assertSee('Donation cancelled / payment failed');
+
+        $this->withCookie('locale', 'id')->get('/history')->assertOk()->assertSee('Gagal')->assertDontSee('Dibatalkan');
+        $this->withCookie('locale', 'id')->get("/donations/{$donation->reference}")
+            ->assertOk()->assertSee('Donasi dibatalkan / pembayaran gagal');
+    }
+
+    // --- donations:expire (BPMN 12)-----------------------------------------------------------
 
     public function test_expire_command_checks_midtrans_before_changing_anything(): void
     {

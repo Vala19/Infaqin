@@ -28,7 +28,7 @@ class Donation extends Model
         self::STATUS_PAID => 'Success',
         self::STATUS_PENDING => 'Waiting payment',
         self::STATUS_EXPIRED => 'Expired',
-        self::STATUS_FAILED => 'Cancelled',
+        self::STATUS_FAILED => 'Failed',
     ];
 
     /**

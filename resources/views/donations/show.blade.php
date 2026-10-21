@@ -3,7 +3,7 @@
     $heading = match ($donation->status) {
         'paid' => 'Jazakallahu khairan!',
         'expired' => __('Payment expired'),
-        default => __('Donation cancelled'),
+        default => __('Donation cancelled / payment failed'),
     };
 @endphp
 

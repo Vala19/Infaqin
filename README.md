@@ -24,7 +24,48 @@ Open http://127.0.0.1:8000.
 | Admin | admin@infaqin.test  | `Admin#12345` |
 | Donor | user@infaqin.test   | `Donor#12345` |
 
-Mail uses the `log` driver, so email verification links appear in `storage/logs/laravel.log`.
+Local mail goes through Mailtrap SMTP: verification emails and donation receipts land in your Mailtrap inbox. Fill in the `MAIL_*` variables in `.env` with the SMTP credentials from your Mailtrap inbox (`MAIL_MAILER=smtp`). Tests use the `array` mailer and never send mail.
+
+## Midtrans sandbox
+
+Payments go through Midtrans Snap. A donation starts as `pending` and only changes status through the Midtrans webhook, the `donations:expire` command, or the donor cancelling it.
+
+1. Create a [Midtrans sandbox](https://dashboard.sandbox.midtrans.com) account and copy the server key and client key from Settings → Access Keys into `.env`:
+
+   ```dotenv
+   MIDTRANS_SERVER_KEY=
+   MIDTRANS_CLIENT_KEY=
+   MIDTRANS_IS_PRODUCTION=false
+   ```
+
+   Then run `php artisan config:clear`.
+
+2. Midtrans needs a public URL to send payment notifications. Expose the local server with ngrok:
+
+   ```bash
+   php artisan serve
+   ngrok http 8000
+   ```
+
+3. In the sandbox dashboard, go to Settings → Payment → Notification URL and set the Payment Notification URL to:
+
+   ```
+   https://<your-ngrok-host>/payments/midtrans/notification
+   ```
+
+   The free ngrok host changes every time ngrok restarts, so update this URL each time.
+
+4. Make a donation, choose a payment method in the Snap popup, then pay it with the [Midtrans payment simulator](https://simulator.sandbox.midtrans.com) (for example, paste the virtual account number or QRIS image). The webhook marks the donation `paid`, updates the campaign total and sends the receipt. Requests arriving through ngrok are visible at http://127.0.0.1:4040.
+
+### Scheduler
+
+Run the scheduler alongside the server:
+
+```bash
+php artisan schedule:work
+```
+
+It runs `donations:expire` every hour. For each pending donation past its 24-hour payment window, the command asks Midtrans for the transaction status and applies it. A transaction Midtrans does not know (for example, the donor closed Snap without choosing a method) is marked `expired`; one that is still pending at Midtrans is checked again next hour.
 
 ## Pages
 
@@ -35,7 +76,7 @@ Mail uses the `log` driver, so email verification links appear in `storage/logs/
 | `/home` | Hero with personal stats and kindness streak, shortcuts (profile, campaigns, history), top campaigns with a CTA box, prayer wall, news. |
 | `/campaigns` | Search, category/status/urgent filters, sort, and a quick-look popover on hover. |
 | `/campaigns/{slug}` | Image, target and progress bar, cash-out count with the Open Fund Ledger, donor count, story, donate and share buttons, expandable prayers, campaigner profile. |
-| `/campaigns/{slug}/donate` | One-click amount presets, custom amount, email, payment method, anonymous ("Hamba Allah") switch, donate on behalf of someone. |
+| `/campaigns/{slug}/donate` | One-click amount presets, custom amount, email, anonymous ("Hamba Allah") switch, donate on behalf of someone. The payment method is chosen in the Midtrans Snap popup. |
 | `/history` | Donation history with search, sort, and filters for status, payment method and date range. |
 | `/profile` | Edit name, username, date of birth and phone. Shows the email address, sends a verification link, changes the password. |
 | `/news` | News written by admins. |
@@ -51,19 +92,21 @@ Error pages for 401, 403, 404, 419, 429, 500 and 503 live in `resources/views/er
 - Login is rate limited per email and IP (5 attempts), the session is regenerated on login and invalidated on logout, and failed logins show a generic message.
 - Every form has CSRF protection. Register, login, donate, comment and verification routes are throttled.
 - `is_admin` cannot be mass assigned. Admin routes require the `admin` middleware.
-- Users can only view or confirm their own donations; other users get a 404.
+- Users can only view or cancel their own donations; other users get a 404.
+- Donating requires a verified email address.
+- The Midtrans webhook verifies the `signature_key` of every notification and is the only route exempt from CSRF.
 - All input is validated. Search terms escape `LIKE` wildcards. User text is escaped on output and tags are stripped on save.
 - Uploads must be JPG, PNG or WebP images, 2 MB maximum.
 - Security headers are added: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS on HTTPS.
 
 ## Before going live
 
-- **Payments are simulated.** The "I have paid" button stands in for a gateway callback (`DonationController@confirm`). Connect a real gateway such as Midtrans or Xendit and confirm donations from a verified webhook.
+- **Switch Midtrans to production.** Use the production keys, set `MIDTRANS_IS_PRODUCTION=true`, and register `https://<your-domain>/payments/midtrans/notification` as the Payment Notification URL in the production dashboard.
 - **Testimonials are placeholders.** The personas in `config/infaqin.php` are fictional. Replace them with real endorsements you have permission to use.
 - **Contact details are placeholders.** Update the company contact details and social links in `config/infaqin.php`.
 - Configure a real mailer in `.env`. Paid donations send a receipt email.
 - **Have a lawyer review `/terms`.** It is a solid draft written for Indonesian law (including UU PDP No. 27/2022), but it is not legal advice.
-- Run the scheduler (`php artisan schedule:work`, or a cron entry for `schedule:run`). It cancels pending donations older than 24 hours every hour.
+- Run the scheduler with a cron entry for `php artisan schedule:run` every minute (see [Scheduler](#scheduler)).
 
 ## Tests
 
