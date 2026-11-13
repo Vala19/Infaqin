@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -76,6 +77,19 @@ class User extends Authenticatable implements MustVerifyEmail
     public function wishlist(): BelongsToMany
     {
         return $this->belongsToMany(Campaign::class, 'wishlists')->withTimestamps();
+    }
+
+    /**
+     * Idempotent: the unique (user_id, campaign_id) index makes a repeated or concurrent save a no-op.
+     */
+    public function saveToWishlist(Campaign $campaign): void
+    {
+        DB::table('wishlists')->insertOrIgnore([
+            'user_id' => $this->id,
+            'campaign_id' => $campaign->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**

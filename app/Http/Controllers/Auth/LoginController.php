@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\WishlistController;
+use App\Models\Campaign;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,8 +55,33 @@ class LoginController extends Controller
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
 
+        if ($request->session()->has(WishlistController::INTENT_KEY)) {
+            return $this->saveWishlistIntent($request);
+        }
+
         return redirect()->intended(route('home'))
             ->with('status', __('Welcome back, :name!', ['name' => $request->user()->name]));
+    }
+
+    /**
+     * Saves the campaign whose heart a guest clicked before logging in. A campaign that became a
+     * draft (or was deleted) meanwhile is skipped; its page would 404, so the donor goes home instead.
+     */
+    private function saveWishlistIntent(Request $request): RedirectResponse
+    {
+        $campaign = Campaign::visible()->find($request->session()->pull(WishlistController::INTENT_KEY));
+
+        if (! $campaign) {
+            $request->session()->forget('url.intended');
+
+            return redirect()->route('home')
+                ->with('status', __('Welcome back, :name!', ['name' => $request->user()->name]));
+        }
+
+        $request->user()->saveToWishlist($campaign);
+
+        return redirect()->intended(route('campaigns.show', $campaign))
+            ->with('status', __('Saved to wishlist'));
     }
 
     public function destroy(Request $request): RedirectResponse

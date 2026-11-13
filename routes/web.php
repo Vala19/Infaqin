@@ -24,6 +24,8 @@ Route::get('/language/{locale}', LocaleController::class)->name('locale.switch')
 Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
 Route::get('/campaigns/{campaign}', [CampaignController::class, 'show'])->name('campaigns.show');
 Route::get('/campaigns/{campaign}/comments', [CommentController::class, 'index'])->name('campaigns.comments');
+// A guest's heart: remembers the campaign in the session, LoginController saves it after login.
+Route::get('/campaigns/{campaign}/wishlist', [WishlistController::class, 'campaign'])->name('wishlist.campaign');
 
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/faq', 'faq')->name('faq');
@@ -61,7 +63,6 @@ Route::middleware('auth')->group(function () {
 
     // Saving is allowed before email verification; only donating requires it.
     Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
-    Route::get('/campaigns/{campaign}/wishlist', [WishlistController::class, 'campaign'])->name('wishlist.campaign');
     Route::post('/campaigns/{campaign}/wishlist', [WishlistController::class, 'update'])->middleware('throttle:30,1')->name('wishlist.update');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

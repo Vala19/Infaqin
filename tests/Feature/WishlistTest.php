@@ -112,16 +112,84 @@ class WishlistTest extends TestCase
         $this->assertSame(0, DB::table('wishlists')->where('campaign_id', $campaign->id)->count());
     }
 
-    public function test_guest_heart_returns_to_the_campaign_after_login(): void
+    private function donor(): User
+    {
+        return User::where('email', 'user@infaqin.test')->firstOrFail();
+    }
+
+    public function test_guest_heart_saves_the_campaign_after_login(): void
     {
         $campaign = $this->campaign('Clean Water Wells');
         $heart = route('wishlist.campaign', $campaign);
 
         $this->get("/campaigns/{$campaign->slug}")->assertOk()->assertSee('href="'.$heart.'"', false);
 
-        $this->get($heart)->assertRedirect('/login');
-        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])->assertRedirect($heart);
+        // The GET only remembers the intent; nothing is written before login.
+        $this->get($heart)->assertRedirect('/login')->assertSessionHas('wishlist.intent', $campaign->id);
+        $this->assertSame(0, $this->wishlistRows($this->donor(), $campaign));
+
+        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])
+            ->assertRedirect(route('campaigns.show', $campaign))
+            ->assertSessionHas('status', 'Saved to wishlist')
+            ->assertSessionMissing('wishlist.intent');
+
+        $this->assertSame(1, $this->wishlistRows($this->donor(), $campaign));
+
+        $this->get(route('campaigns.show', $campaign))->assertOk()
+            ->assertSee('Saved to wishlist')
+            ->assertSee('aria-pressed="true"', false);
+
+        // Logged in, the heart link just leads back to the campaign.
         $this->get($heart)->assertRedirect(route('campaigns.show', $campaign));
+    }
+
+    public function test_guest_heart_on_an_already_saved_campaign_keeps_one_row(): void
+    {
+        $campaign = $this->campaign('Clean Water Wells');
+        $this->donor()->wishlist()->attach($campaign);
+
+        $this->get(route('wishlist.campaign', $campaign));
+        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])
+            ->assertRedirect(route('campaigns.show', $campaign));
+
+        $this->assertSame(1, $this->wishlistRows($this->donor(), $campaign));
+    }
+
+    public function test_wishlist_intent_survives_a_failed_login(): void
+    {
+        $campaign = $this->campaign('Clean Water Wells');
+
+        $this->get(route('wishlist.campaign', $campaign));
+        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'wrong-password'])->assertSessionHasErrors('email');
+        $this->assertSame(0, $this->wishlistRows($this->donor(), $campaign));
+
+        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])
+            ->assertRedirect(route('campaigns.show', $campaign));
+        $this->assertSame(1, $this->wishlistRows($this->donor(), $campaign));
+    }
+
+    public function test_wishlist_intent_is_ignored_when_the_campaign_became_a_draft(): void
+    {
+        $campaign = $this->campaign('Clean Water Wells');
+
+        $this->get(route('wishlist.campaign', $campaign))->assertRedirect('/login');
+        $campaign->update(['status' => Campaign::STATUS_DRAFT]);
+
+        $this->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('status', 'Welcome back, '.$this->donor()->name.'!')
+            ->assertSessionMissing('wishlist.intent');
+
+        $this->assertSame(0, $this->wishlistRows($this->donor(), $campaign));
+    }
+
+    public function test_saved_to_wishlist_message_is_translated(): void
+    {
+        $campaign = $this->campaign('Clean Water Wells');
+
+        $this->get(route('wishlist.campaign', $campaign));
+        $this->withCookie('locale', 'id')->post('/login', ['email' => 'user@infaqin.test', 'password' => 'Donor#12345'])
+            ->assertSessionHas('status', 'Disimpan ke wishlist');
     }
 
     public function test_drafts_cannot_be_saved(): void
@@ -131,6 +199,8 @@ class WishlistTest extends TestCase
 
         $this->actingAs($user)->postJson("/campaigns/{$draft->slug}/wishlist", ['saved' => true])->assertNotFound();
         $this->actingAs($user)->get("/campaigns/{$draft->slug}/wishlist")->assertNotFound();
+        $this->app['auth']->forgetGuards();
+        $this->get("/campaigns/{$draft->slug}/wishlist")->assertNotFound()->assertSessionMissing('wishlist.intent');
 
         $this->assertSame(0, $this->wishlistRows($user, $draft));
     }

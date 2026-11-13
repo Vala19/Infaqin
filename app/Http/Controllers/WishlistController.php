@@ -6,11 +6,12 @@ use App\Models\Campaign;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class WishlistController extends Controller
 {
+    public const INTENT_KEY = 'wishlist.intent';
+
     /**
      * Saved campaigns, newest first. Drafts never show; closed campaigns stay with a "Closed" label.
      */
@@ -27,13 +28,21 @@ class WishlistController extends Controller
     }
 
     /**
-     * Where a guest's heart points: `auth` sends them to log in, then they land back on the campaign.
+     * Where a guest's heart points. The campaign is remembered in the session; LoginController
+     * saves it after a successful login and lands back on the campaign.
      */
-    public function campaign(Campaign $campaign): RedirectResponse
+    public function campaign(Request $request, Campaign $campaign): RedirectResponse
     {
         abort_if($campaign->isDraft(), 404);
 
-        return redirect()->route('campaigns.show', $campaign);
+        if ($request->user()) {
+            return redirect()->route('campaigns.show', $campaign);
+        }
+
+        $request->session()->put(self::INTENT_KEY, $campaign->id);
+        redirect()->setIntendedUrl(route('campaigns.show', $campaign));
+
+        return redirect()->route('login');
     }
 
     /**
@@ -51,13 +60,7 @@ class WishlistController extends Controller
         $user = $request->user();
 
         if ($saved) {
-            // The unique (user_id, campaign_id) index makes a concurrent duplicate a no-op.
-            DB::table('wishlists')->insertOrIgnore([
-                'user_id' => $user->id,
-                'campaign_id' => $campaign->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $user->saveToWishlist($campaign);
         } else {
             $user->wishlist()->detach($campaign->id);
         }
