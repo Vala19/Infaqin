@@ -1,7 +1,8 @@
 @php
     $company = config('infaqin.company');
-    $featureIcons = ['ledger' => 'withdraw', 'prayer' => 'care', 'zakat' => null, 'streak' => null, 'tribute' => null, 'anonymous' => null];
-    $featureFallback = ['zakat' => 'calculator', 'streak' => 'flame', 'tribute' => 'gift', 'anonymous' => 'mask'];
+    $featureIcons = ['ledger' => 'receipt', 'prayer' => 'hands', 'zakat' => 'calculator', 'streak' => 'flame', 'tribute' => 'gift', 'anonymous' => 'mask'];
+    // Icon tiles take turns through the brand colours, so the six cards are not one repeated block.
+    $featureTiles = ['bg-brand text-white', 'bg-forest text-mint', 'bg-mint text-forest'];
 @endphp
 
 <x-layouts.app nav="landing" :overlay-nav="true">
@@ -52,27 +53,52 @@
                              class="absolute inset-0 size-full object-cover">
                     @endforeach
                 </div>
-                <div class="absolute -bottom-6 -left-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-night shadow-xl sm:-left-8">
-                    <span class="grid size-10 place-items-center rounded-xl bg-mint-50"><x-figma-icon name="donation" class="size-6" /></span>
-                    <div>
-                        <p class="text-[11px] text-ink/60">{{ __('Raised together') }}</p>
-                        <p class="text-sm font-bold">{{ rupiah_short($stats['raised']) }}</p>
-                    </div>
+                {{-- Who runs the campaign on screen, and how it is going --}}
+                <div class="absolute -bottom-6 -left-4 grid max-w-[calc(100%-1rem)] rounded-2xl bg-white px-4 py-3 text-night shadow-xl sm:-left-8">
+                    @foreach ($slides as $i => $slide)
+                        <div class="col-start-1 row-start-1 flex items-center gap-3 transition-opacity duration-500" @if ($i > 0) x-cloak @endif
+                             :class="active === {{ $i }} ? 'visible opacity-100' : 'invisible opacity-0'" :aria-hidden="active !== {{ $i }}">
+                            <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-mint-50"><x-figma-icon name="donation" class="size-6" /></span>
+                            <div class="min-w-0">
+                                <p class="flex items-center gap-1 text-xs text-ink/70">
+                                    <span class="truncate">{{ $slide->campaigner->name }}</span>
+                                    @if ($slide->campaigner->is_verified)
+                                        <x-icon name="shield-check" class="size-3.5 shrink-0 text-brand" />
+                                    @endif
+                                </p>
+                                <p class="text-sm font-bold whitespace-nowrap">
+                                    {{ __(':count donors', ['count' => number_format($slide->donor_count)]) }}@if (! is_null($slide->daysLeft())) · {{ __(':count days left', ['count' => $slide->daysLeft()]) }}@endif
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>
 
-        {{-- Carousel controls --}}
+        {{-- Carousel controls: the active bar fills while its slide is on screen --}}
         @if ($slides->count() > 1)
-            <div class="container-page relative -mt-10 flex items-center gap-4 pb-12">
+            <div class="container-page relative -mt-10 flex flex-wrap items-center gap-4 pb-12">
                 <button type="button" @click="prev()" class="grid size-10 place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/10" aria-label="{{ __('Previous campaign') }}"><x-icon name="chevron-left" class="size-5" /></button>
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
                     @foreach ($slides as $i => $slide)
-                        <button type="button" @click="go({{ $i }})" class="h-2 rounded-full transition-all duration-300"
-                                :class="active === {{ $i }} ? 'w-8 bg-brand' : 'w-2 bg-white/30 hover:bg-white/60'" aria-label="{{ __('Show slide :number', ['number' => $i + 1]) }}"></button>
+                        <button type="button" @click="go({{ $i }})" class="group grid h-6 place-items-center transition-all duration-300"
+                                :class="active === {{ $i }} ? 'w-12' : 'w-6'" :aria-current="active === {{ $i }}"
+                                aria-label="{{ __('Show slide :number', ['number' => $i + 1]) }}: {{ $slide->title }}">
+                            <span class="block h-1.5 w-full overflow-hidden rounded-full bg-white/25 group-hover:bg-white/45">
+                                <span class="block h-full origin-left rounded-full bg-brand" :style="progressStyle({{ $i }})" style="transform: scaleX({{ $i === 0 ? 1 : 0 }})"></span>
+                            </span>
+                        </button>
                     @endforeach
                 </div>
                 <button type="button" @click="next()" class="grid size-10 place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/10" aria-label="{{ __('Next campaign') }}"><x-icon name="chevron-right" class="size-5" /></button>
+                <button type="button" @click="toggle()" class="ml-1 flex h-10 items-center gap-2 rounded-full px-3 text-sm text-white/80 transition hover:bg-white/10 hover:text-white">
+                    <span class="relative grid size-4 place-items-center" aria-hidden="true">
+                        <svg x-show="!paused" class="size-4" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" /></svg>
+                        <svg x-show="paused" x-cloak class="size-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11a1 1 0 0 0 1.5.86l9-5.5a1 1 0 0 0 0-1.72l-9-5.5A1 1 0 0 0 4 2.5Z" /></svg>
+                    </span>
+                    <span class="max-sm:sr-only" x-text="paused ? @js(__('Play')) : @js(__('Pause'))">{{ __('Pause') }}</span>
+                </button>
             </div>
         @endif
     </section>
@@ -80,10 +106,13 @@
     {{-- Impact strip --}}
     <div class="relative z-10 container-page -mt-8">
         <dl class="grid grid-cols-1 divide-y divide-mist/70 card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            @foreach ([[__('Raised for people in need'), rupiah($stats['raised'])], [__('Generous donors'), number_format($stats['donors'])], [__('Campaigns supported'), number_format($stats['campaigns'])]] as [$label, $value])
-                <div class="px-6 py-5 text-center">
-                    <dd class="text-2xl font-bold text-brand">{{ $value }}</dd>
-                    <dt class="mt-1 text-sm text-ink/70">{{ $label }}</dt>
+            @foreach ([['donation', __('Raised for people in need'), rupiah($stats['raised'])], ['profile', __('Generous donors'), number_format($stats['donors'])], ['care', __('Campaigns supported'), number_format($stats['campaigns'])]] as [$icon, $label, $value])
+                <div class="flex items-center justify-center gap-4 px-6 py-5">
+                    <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-mint-50"><x-figma-icon :name="$icon" class="size-7" /></span>
+                    <div class="flex flex-col">
+                        <dt class="order-2 text-sm text-ink/70">{{ $label }}</dt>
+                        <dd class="order-1 text-2xl font-bold text-brand tabular-nums">{{ $value }}</dd>
+                    </div>
                 </div>
             @endforeach
         </dl>
@@ -93,9 +122,11 @@
     <section id="about" data-section class="py-24">
         <div class="container-page grid items-center gap-14 lg:grid-cols-2">
             <div class="relative">
-                <div class="grid grid-cols-[1.4fr_1fr] gap-4">
-                    <img src="{{ asset('images/campaigns/team.jpg') }}" alt="{{ __('The Infaqin volunteer team') }}" class="aspect-[4/3] w-full rounded-2xl object-cover shadow-card" loading="lazy">
-                    <img src="{{ asset('images/campaigns/handover.jpg') }}" alt="{{ __('A volunteer handing over aid') }}" class="aspect-[2/3] w-full rounded-2xl object-cover shadow-card" loading="lazy">
+                {{-- Three photographs, so the column is as tall as the text beside it --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <img src="{{ asset('images/campaigns/team.jpg') }}" alt="{{ __('The Infaqin volunteer team') }}" width="1400" height="933" class="col-span-2 aspect-[16/9] w-full rounded-2xl object-cover object-[50%_40%] shadow-card" loading="lazy">
+                    <img src="{{ asset('images/campaigns/handover.jpg') }}" alt="{{ __('A volunteer handing over aid') }}" width="933" height="1400" class="aspect-[4/5] w-full rounded-2xl object-cover object-[50%_45%] shadow-card" loading="lazy">
+                    <img src="{{ asset('images/campaigns/volunteer-gift.jpg') }}" alt="{{ __('A volunteer holding a gift basket') }}" width="933" height="1400" class="aspect-[4/5] w-full rounded-2xl object-cover object-[50%_45%] shadow-card" loading="lazy">
                 </div>
                 <div class="absolute -right-2 -bottom-8 hidden items-center gap-3 rounded-2xl bg-forest p-4 pr-6 text-white shadow-xl sm:flex">
                     <x-logo variant="tile" class="h-12 rounded-xl" />
@@ -154,24 +185,43 @@
             </x-section-heading>
 
             <div class="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                @foreach (config('infaqin.features') as $feature)
-                    <div class="group card relative overflow-hidden p-7 transition hover:-translate-y-1 hover:shadow-xl">
-                        <div class="absolute -top-10 -right-10 size-32 rounded-full bg-mint-50 transition group-hover:scale-125"></div>
-                        <span class="relative grid size-14 place-items-center rounded-2xl bg-mint-50 text-brand ring-1 ring-brand/15">
-                            @if ($featureIcons[$feature['key']])
-                                <x-figma-icon :name="$featureIcons[$feature['key']]" class="size-7" />
-                            @else
-                                <x-icon :name="$featureFallback[$feature['key']]" class="size-7" />
-                            @endif
+                @foreach (config('infaqin.features') as $i => $feature)
+                    <div class="group card flex flex-col p-7 transition hover:-translate-y-1 hover:shadow-xl">
+                        <span @class(['grid size-14 place-items-center rounded-2xl transition group-hover:scale-105', $featureTiles[$i % count($featureTiles)]])>
+                            <x-icon :name="$featureIcons[$feature['key']]" class="size-7" />
                         </span>
-                        <h3 class="relative mt-5 text-lg font-semibold text-night">{{ __($feature['title']) }}</h3>
-                        <p class="relative mt-2 text-sm leading-relaxed text-ink/80">{{ __($feature['body']) }}</p>
+                        <h3 class="mt-5 text-lg font-semibold text-night">{{ __($feature['title']) }}</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-ink/80">{{ __($feature['body']) }}</p>
+
+                        {{-- Live proof where the feature has some --}}
+                        @if ($feature['key'] === 'ledger' && $latestWithdrawal)
+                            <a href="{{ route('campaigns.show', $latestWithdrawal->campaign) }}" class="mt-6 block rounded-xl bg-mint-50 p-4 pt-3.5 transition hover:bg-mint/40 md:mt-auto">
+                                <span class="block text-xs font-semibold text-forest">{{ __('Latest withdrawal') }}</span>
+                                <span class="mt-1 flex items-baseline justify-between gap-3">
+                                    <span class="truncate text-sm font-medium text-night">{{ $latestWithdrawal->campaign->title }}</span>
+                                    <span class="shrink-0 text-sm font-bold text-forest tabular-nums">{{ rupiah($latestWithdrawal->amount) }}</span>
+                                </span>
+                                <span class="mt-0.5 block truncate text-xs text-ink/70">
+                                    <time datetime="{{ $latestWithdrawal->withdrawn_at->toDateString() }}">{{ $latestWithdrawal->withdrawn_at->translatedFormat('d M Y') }}</time>, {{ $latestWithdrawal->description }}
+                                </span>
+                            </a>
+                        @elseif ($feature['key'] === 'prayer' && $latestPrayer)
+                            <a href="{{ route('campaigns.show', $latestPrayer->campaign) }}#prayers" class="mt-6 block rounded-xl bg-mint-50 p-4 pt-3.5 transition hover:bg-mint/40 md:mt-auto">
+                                <span class="block text-xs font-semibold text-forest">{{ __('Latest prayer') }}</span>
+                                <span class="mt-1 line-clamp-2 text-sm text-night italic">“{{ $latestPrayer->body }}”</span>
+                                <span class="mt-1 block truncate text-xs text-ink/70">{{ $latestPrayer->authorName() }}, {{ trans_choice(':count person said Aamiin|:count people said Aamiin', $latestPrayer->amens_count) }}</span>
+                            </a>
+                        @elseif ($feature['key'] === 'zakat')
+                            <a href="#zakat" class="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline md:mt-auto">
+                                {{ __('Try the calculator') }} <x-icon name="chevron-down" class="size-4" />
+                            </a>
+                        @endif
                     </div>
                 @endforeach
             </div>
 
             {{-- Zakat calculator (live feature) --}}
-            <div x-data="zakatCalculator" class="mt-14 overflow-hidden rounded-3xl bg-forest text-white shadow-xl lg:grid lg:grid-cols-[1.15fr_1fr]">
+            <div id="zakat" x-data="zakatCalculator" class="mt-14 scroll-mt-24 overflow-hidden rounded-3xl bg-forest text-white shadow-xl lg:grid lg:grid-cols-[1.15fr_1fr]">
                 <div class="p-8 sm:p-10">
                     <p class="eyebrow text-mint">{{ __('Try it now') }}</p>
                     <h3 class="mt-2 text-2xl font-bold">{{ __('Zakat calculator') }}</h3>

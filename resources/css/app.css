@@ -112,3 +112,22 @@
         @apply mb-4 leading-relaxed text-ink;
     }
 }
+
+/* Landing hero: the active slide's bar fills over one autoplay interval.
+   Two identical keyframes, so switching the name restarts the animation (see carousel.progressStyle). */
+@keyframes carousel-progress-0 {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+@keyframes carousel-progress-1 {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}

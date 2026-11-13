@@ -9,17 +9,37 @@ const formatRupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID'
 Alpine.data('carousel', (count = 0, interval = 6000) => ({
     active: 0,
     count,
+    interval,
     timer: null,
+    // running: the timer is ticking (hover and focus stop it for a moment).
+    // paused: the visitor pressed Pause, so nothing restarts it until they press Play.
+    running: false,
+    paused: false,
+    // Bumped on every (re)start so the progress bar animation restarts in step with the timer.
+    cycle: 0,
     init() {
         this.play();
     },
     play() {
-        if (this.count < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (this.paused || this.count < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         this.stop();
         this.timer = setInterval(() => this.next(), interval);
+        this.running = true;
+        this.cycle++;
     },
     stop() {
         clearInterval(this.timer);
+        this.running = false;
+    },
+    toggle() {
+        this.paused = !this.paused;
+        this.paused ? this.stop() : this.play();
+    },
+    // Inline style for a slide's progress bar: fills over one interval while the timer runs.
+    progressStyle(index) {
+        if (this.active !== index) return 'transform: scaleX(0)';
+        if (!this.running) return 'transform: scaleX(1)';
+        return `animation: carousel-progress-${this.cycle % 2} ${this.interval}ms linear forwards`;
     },
     go(index) {
         this.active = (index + this.count) % this.count;

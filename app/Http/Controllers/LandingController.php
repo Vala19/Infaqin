@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
+use App\Models\Comment;
 use App\Models\Donation;
+use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -31,8 +33,23 @@ class LandingController extends Controller
             'campaigns' => Campaign::visible()->count(),
         ];
 
+        // Live proof for the Open Fund Ledger and Prayer Wall feature cards (public campaigns only).
+        $public = fn ($query) => $query->visible();
+
+        $latestWithdrawal = Withdrawal::whereHas('campaign', $public)
+            ->with('campaign')
+            ->latest('withdrawn_at')
+            ->latest('id')
+            ->first();
+
+        $latestPrayer = Comment::whereHas('campaign', $public)
+            ->with(['user', 'donation', 'campaign'])
+            ->latest()
+            ->latest('id')
+            ->first();
+
         $wishlistIds = $request->user()?->wishlistIds() ?? [];
 
-        return view('landing', compact('slides', 'topCampaigns', 'stats', 'wishlistIds'));
+        return view('landing', compact('slides', 'topCampaigns', 'stats', 'latestWithdrawal', 'latestPrayer', 'wishlistIds'));
     }
 }
